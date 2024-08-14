@@ -1,0 +1,13 @@
+numpy
+matplotlib
+pandas
+scipy
+statsmodels
+torch
+tensorboard
+psycopg2
+redis
+plotly
+ta
+tqdm
+optuna
