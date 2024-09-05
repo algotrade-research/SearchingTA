@@ -36,15 +36,22 @@ class Downloader:
                 SELECT
                     m.datetime,
                     m.price,
+                    bp.price as bid_price,
+                    ap.price as ask_price,
                     v.quantity
                 FROM quote.matched m
                 JOIN
                     quote.futurecontractcode fc ON DATE(m.datetime) = fc.datetime AND m.tickersymbol = fc.tickersymbol
                 LEFT JOIN
                     quote.total v ON v.datetime = m.datetime AND v.tickersymbol = m.tickersymbol
+                LEFT JOIN
+                    quote.bidprice bp ON bp.datetime = m.datetime AND bp.tickersymbol = m.tickersymbol
+                LEFT JOIN
+                    quote.askprice ap ON ap.datetime = m.datetime AND ap.tickersymbol = m.tickersymbol
                 WHERE
                     m.datetime BETWEEN %s AND %s
                     AND fc.futurecode = %s
+                    AND bp.depth=1 AND ap.depth=1
                 ORDER BY m.datetime
             """
             
@@ -54,7 +61,7 @@ class Downloader:
             cur.close()
 
             # Return the result 
-            result = pd.DataFrame(result, columns=["datetime", "price", "volume"])
+            result = pd.DataFrame(result, columns=["datetime", "price", "bid_price", "ask_price", "volume"])
             result.set_index("datetime", inplace=True)
             result.index = pd.to_datetime(result.index)
             result = result.astype(float)

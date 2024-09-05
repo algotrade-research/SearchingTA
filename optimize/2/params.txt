@@ -1,0 +1,8 @@
+
+TP: 3.0, SL: 4.5
+Expected PnL: 1.7853466666666669
+Hitting Probability: 0.6093333333333334
+Strategies: ['PPO', 'ATR', 'CCI', 'Momentum', 'Volume_MA', 'MomentumBBL', 'Keltner', 'OBV', 'Donchian', 'UO', 'Vortex']
+Winrate: 0.5522605736509479, Mean Pnl: -0.038979095770567476
+Loss: -0.5577485273560197
+                

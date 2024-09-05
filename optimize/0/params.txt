@@ -1,0 +1,8 @@
+
+TP: 3.0, SL: 3.0
+Expected PnL: 1.4991833333333333
+Hitting Probability: 0.5116666666666666
+Strategies: ['RSI', 'MACD', 'MA20', 'PPO', 'ROC', 'ATR', 'ADX', 'CCI', 'Momentum', 'Williams R', 'OBV', 'Donchian', 'UO', 'Force Index']
+Winrate: 0.441755768148565, Mean Pnl: -0.7376252110298461
+Loss: -0.8143258475240577
+                

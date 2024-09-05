@@ -1,0 +1,8 @@
+
+TP: 1.5, SL: 4.0
+Expected PnL: 1.0582
+Hitting Probability: 0.7400000000000001
+Strategies: ['RSI', 'Bollinger Bands', 'VWAP', 'ADX', 'MomentumBBL', 'Keltner', 'PSAR', 'Donchian', 'Force Index']
+Winrate: 0.5981910684002261, Mean Pnl: -1.3463651780667252
+Loss: -1.2319750284702335
+                

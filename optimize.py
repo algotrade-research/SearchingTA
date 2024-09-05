@@ -1,148 +1,192 @@
 from utils import *
 from alpha import *
+import numpy as np
+import pandas as pd
 import optuna
+import os
 from typing import List
 import warnings
 import logging
 
+dir = input("Enter Directory: ")
+os.makedirs(dir, exist_ok=True)
+
 warnings.filterwarnings('ignore')
-logging.basicConfig(filename='optimization_results.log', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(filename=f'{dir}/strategy_optimize.log', level=logging.INFO, format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
+# Define the strategy options
+strategy_options = [
+    ('RSI', RSI), 
+    ('Bollinger Bands', BBL), 
+    ('MACD', MACD), 
+    ('VWAP', VWAP), 
+    ('MA5', MA5), 
+    ('MA20', MA20), 
+    ('PPO', PPO), 
+    ('ROC', ROC), 
+    ('TSI', TSI), 
+    ('ATR', ATR), 
+    ('ADX', ADX), 
+    ('CCI', CCI), 
+    ('Momentum', Momentum), 
+    ('Volume_MA', Volume_MA), 
+    ('MomentumBBL', MomentumBBL), 
+    ('Keltner', Keltner), 
+    ('SO', SO), 
+    ('Williams R', W_R), 
+    ('PSAR', PSAR), 
+    ('OBV', OBV), 
+    ('Donchian', Donchian), 
+    ('UO', UO), 
+    ('Force Index', FI), 
+    ('Vortex', Vortex) 
+]
 
-
-downloader = Downloader()
-
+# Download historical data
 print("Downloading Data...")
+downloader = Downloader()
 data = downloader.get_historical_data(start_date="2022-01-01", end_date="2024-08-12")
+downloader.close()
+del downloader
 
+# Train test split
 print("Train test split")
-# Train test  Split
-ratio = 0.8
+ratio = 0.7
 train_size = int(ratio * len(data))
+train = data.iloc[:train_size].copy()
+test = data.iloc[train_size:].copy()
+del data
 
-train = data.iloc[:train_size]
-test = data.iloc[train_size:]
+optimize_data = train.iloc[:int(0.5 * len(train))].copy()
 
-# train validate
-train_ratio = 0.2
-train_size = int(train_ratio * len(train))
+# Read best parameters from CSV
+try:
+    best_params = pd.read_csv("optuna_trials.csv").set_index("number").sort_values("value", ascending=False).iloc[0].to_dict()
+except Exception as e:
+    print(f"Error reading CSV file: {e}")
+    best_params = {}
 
-train_data = train.iloc[:train_size]
-validate_data = train.iloc[train_size:]
+# Initialize global variables
+TP_ = 0
+SL_ = 0
+min_signals = 0
+strategies = []
+strategies_name = []
 
+# Parse best parameters
+for key, val in best_params.items():
+    key = key.replace("params_", "")
+    if key == "TP":
+        TP_ = float(val)
+    elif key == "SL":
+        SL_ = float(val)
+    elif key == "min_signals":
+        min_signals = int(val)
+    else:
+        if val:
+            strategies.append(key)
+            strategies_name.append(key)
+
+print(strategies)
+
+strategies = [strategy for strategy_name, strategy in strategy_options if strategy_name in strategies]
+
+print("Params:", TP_, SL_, min_signals, strategies)
 
 def objective(trial):
-    # max_pos = trial.suggest_int("max_pos", 1, 5)
-    TP = trial.suggest_float("TP", 0.5, 15.0, step=0.1)
-    SL = trial.suggest_float("SL", 0.1, 15.0, step=0.1)
-    interval = trial.sugget_int("interval", 1, 60, step=1)
+    TP = TP_ + trial.suggest_float("TP", -1, 1, step=0.5)
+    SL = SL_ + trial.suggest_float("SL", -1, 1, step=0.5)
+    max_pos = trial.suggest_int("max_pos", 1, 10)
+    min_signals_ =  min_signals + trial.suggest_int("min_signals", -2, 1, step=1)
 
-    strategy_options = ['MACD', 'RSI', 'BBL', 'VWAP', 'MA5', "MA20"]
-
-    selected_strategies = []
-    for strategy in strategy_options:
-        if trial.suggest_categorical(f"use_{strategy}", [True, False]):
-            selected_strategies.append(strategy)
-    
-    if not selected_strategies:
-        selected_strategies.append(trial.suggest_categorical("fallback_strategy", strategy_options))
-
-    strategies = []
-    if 'MACD' in selected_strategies:
-        strategies.append(MACD)
-    if 'RSI' in selected_strategies:
-        strategies.append(RSI)
-    if 'BBL' in selected_strategies:
-        strategies.append(BBL)
-    if 'VWAP' in selected_strategies:
-        strategies.append(VWAP)
-    if 'MA5' in selected_strategies:
-        strategies.append(MA5)
-    if 'MA20' in selected_strategies:
-        strategies.append(MA20)
-    
-    print(f"""
-          Strategy: {selected_strategies}
-          TP, SL: {TP, SL}
-          interval: {interval}
-          """)
-    # Initialize the backtesting with the suggested parameters
     backtester = Backtesting(
         strategy=strategies, 
-        interval=interval,
-        data=train_data,  # Your dataset
-        initial_balance=10000, 
+        data=optimize_data, 
+        initial_balance=2e9, 
         cost=0.07, 
         slippage=0.25, 
         TP=TP, 
         SL=SL, 
-        max_pos=1, 
-        position_size=0.3, 
-        model=None, 
-        window=50, 
-        MP=False
+        max_pos=max_pos, 
+        min_signals=min_signals_
     )
     
     try:
-       # Run the backtest
         backtester.backtest()
-        daily_returns = backtester.data.Equity[backtester.data.Equity != 10000].pct_change().dropna()
-        std = daily_returns.std()
-        sharpe_ratio = float((daily_returns.mean() / std) * np.sqrt(252))
-        cum_returns = backtester._histor["pnl"].cumsum()
-        drawdown = ((cum_returns / cum_returns.cummax()) - 1).min()
         
-        logging.info("Sharpe Ratio:", sharpe_ratio)
-        logging.info(f"intercal: {interval} Strategy: {selected_strategies}, TP: {TP}, SL: {SL}")        
-
-        return sharpe_ratio * 0.9 + drawdown * 0.1  # The objective is to maximize the Sharpe ratio
+        pnl_series = backtester._history.set_index("close_time")['pnl']
+        pnl_series.index = pd.to_datetime(pnl_series.index)
+        mean_pnl = pnl_series.mean()
+        sharpe_ratio = np.sqrt(252) * pnl_series.resample("1D").sum().mean() / pnl_series.resample("1D").sum().std()
+        winrate = (pnl_series > 0).astype(int).sum() / len(pnl_series)
+        
+        print(f"Mean PnL: {mean_pnl}, Winrate: {winrate}")
+        
+        hitting_prob = SL / (SL + TP) - 1
+        expected_pnl = TP * hitting_prob
+        
+        loss = float((sharpe_ratio - 1))
+        
+        subdir_name = f"{trial.number}"
+        os.makedirs(os.path.join(dir, subdir_name), exist_ok=True)
+        backtester._history.to_csv(os.path.join(dir, subdir_name, "history.csv"))
+        backtester.data.Equity.to_csv(os.path.join(dir, subdir_name, "Equity.csv"))
+        
+        file_path = os.path.join(dir, subdir_name, "params.txt")
+        with open(file_path, "w") as file:
+            file.write(f"TP: {TP}\n SL: {SL}\nMin Signals: {min_signals_}\nMax Pos:{max_pos}\nStrategies: {strategies_name}\nWinrate: {winrate}\nMean Pnl: {mean_pnl}\nSharpe Ratio: {sharpe_ratio}")
+        
+        logging.info(f"\n\n=============================")
+        logging.info(f"-- {trial.number} --")
+        logging.info(f"Strategy: {strategies}, TP: {TP}, SL: {SL}")
+        logging.info(f"Winrate: {winrate}")
+        logging.info(f"Sharpe Ratio: {sharpe_ratio}")
+        logging.info(f"Mean PnL: {mean_pnl}")
+        logging.info(f"Loss: {loss}")
+        logging.info(f"Number Of Trades: {len(pnl_series)}")
+        
+        return loss
     except Exception as e:
-        print(e)
+        print(f"Error: {e}")
         return -1
-        
 
+print("Start Searching...")
 
-print("Optimizing")
-study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=1000)
-
-print("Best parameters:", study.best_params)
-print("Best Sharpe Ratio:", study.best_value)
-
-# Get the best parameters
-best_params = study.best_params
-
-# Convert best_params dictionary to a string representation
-best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
-
-with open("best_params.log", "w") as file:
-    file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
-    file.write("Best Parameters:\n" + best_params_str)
-
-
-# Test the best parameters on the validation set
-print("Testing the best parameters on the validation set")
-backtester = Backtesting(
-    strategy=best_params['strategy'], 
-    data=validate_data, 
-    initial_balance=10000, 
-    cost=0.07, 
-    slippage=0.25, 
-    TP=best_params['TP'], 
-    SL=best_params['SL'], 
-    max_pos=best_params['max_pos'], 
-    position_size=0.3, 
-    model=None, 
-    window=50, 
-    MP=False
-)
 try:
-    backtester.backtest()
-    print("Validation results:", backtester.evaluate())
-    backtester.data.to_csv("validation.csv")
-    backtester._history.to_csv("validation_history.csv")
-except Exception as e:
-    print("Error", e)
-    backtester.data.to_csv("validation.csv")
-    backtester._history.to_csv("validation_history.csv")
+    study = optuna.create_study(direction="maximize")  # Assuming you want to minimize the loss
+    study.optimize(objective, n_trials=100)
 
+    df_trials = study.trials_dataframe()
+    df_trials.to_csv(f"{dir}/strategy_optimize_trial.csv", index=False)
+
+    best_params = study.best_params
+    best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
+
+    with open(f"{dir}strategy_optimize_params.log", "w") as file:
+        file.write("Best Trial: " + str(study.best_trial.number) + "\n")
+        file.write("Best Loss: " + str(study.best_value) + "\n")
+        file.write("Best Parameters:\n" + best_params_str)
+        
+except KeyboardInterrupt:
+    df_trials = study.trials_dataframe()
+    df_trials.to_csv(f"{dir}strategy_optimize_trial.csv", index=False)
+
+    best_params = study.best_params
+    best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
+
+    with open(f"{dir}strategy_optimize_params.log", "w") as file:
+        file.write("Best Trial: " + str(study.best_trial.number) + "\n")
+        file.write("Best Loss: " + str(study.best_value) + "\n")
+        file.write("Best Parameters:\n" + best_params_str)
+        
+except Exception as e:
+    df_trials = study.trials_dataframe()
+    df_trials.to_csv(f"{dir}strategy_optimize_trial.csv", index=False)
+
+    best_params = study.best_params
+    best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
+
+    with open(f"{dir}strategy_optimize_params.log", "w") as file:
+        file.write("Best Trial: " + str(study.best_trial.number) + "\n")
+        file.write("Best Loss: " + str(study.best_value) + "\n")
+        file.write("Best Parameters:\n" + best_params_str)
