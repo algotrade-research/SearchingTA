@@ -1,8 +1,8 @@
 TP: 5.0
- SL: 3.5
-Min Signals: 9
-Max Pos:9
-Strategies: ['value', 'datetime_start', 'datetime_complete', 'duration', 'Bollinger Bands', 'CCI', 'Donchian', 'Force Index', 'MA20', 'MA5', 'MACD', 'Momentum', 'OBV', 'PPO', 'PSAR', 'ROC', 'UO', 'Vortex', 'state']
-Winrate: 0.44464
-Mean Pnl: 0.7871231999999797
-Sharpe Ratio: 1.4492286255325046
+ SL: 1.5
+Min Signals: 5
+Max Pos:10
+Strategies: ['value', 'datetime_start', 'datetime_complete', 'duration', 'Donchian', 'Force Index', 'MA20', 'Momentum', 'MomentumBBL', 'PPO', 'UO', 'Volume_MA', 'state']
+Winrate: 0.2917816175402933
+Mean Pnl: 0.45578626397558814
+Sharpe Ratio: 1.473308833822421

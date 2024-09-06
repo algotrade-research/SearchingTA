@@ -12,8 +12,10 @@ dir = input("Enter Directory: ")
 os.makedirs(dir, exist_ok=True)
 
 warnings.filterwarnings('ignore')
-logging.basicConfig(filename=f'{dir}/strategy_optimize.log', level=logging.INFO, format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
+logging.basicConfig(filename=os.path.join(dir, "strategy_optimize.log"), level=logging.INFO, format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+logging.info("Start Optimization")
 # Define the strategy options
 strategy_options = [
     ('RSI', RSI), 
@@ -157,36 +159,37 @@ try:
     study.optimize(objective, n_trials=100)
 
     df_trials = study.trials_dataframe()
-    df_trials.to_csv(f"{dir}/strategy_optimize_trial.csv", index=False)
+    df_trials.to_csv(os.path.join(dir, "strategy_optimize_trial.csv"), index=False)
 
     best_params = study.best_params
     best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
 
-    with open(f"{dir}strategy_optimize_params.log", "w") as file:
+    with open(os.path.join(dir, "strategy_optimize_best_params.txt"), "w") as file:
         file.write("Best Trial: " + str(study.best_trial.number) + "\n")
         file.write("Best Loss: " + str(study.best_value) + "\n")
         file.write("Best Parameters:\n" + best_params_str)
         
 except KeyboardInterrupt:
     df_trials = study.trials_dataframe()
-    df_trials.to_csv(f"{dir}strategy_optimize_trial.csv", index=False)
+    df_trials.to_csv(os.path.join(dir, "strategy_optimize_trial.csv"), index=False)
 
     best_params = study.best_params
     best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
 
-    with open(f"{dir}strategy_optimize_params.log", "w") as file:
+    with open(os.path.join(dir, "strategy_optimize_best_params.txt"), "w") as file:
         file.write("Best Trial: " + str(study.best_trial.number) + "\n")
         file.write("Best Loss: " + str(study.best_value) + "\n")
         file.write("Best Parameters:\n" + best_params_str)
         
 except Exception as e:
     df_trials = study.trials_dataframe()
-    df_trials.to_csv(f"{dir}strategy_optimize_trial.csv", index=False)
+    df_trials.to_csv(os.path.join(dir, "strategy_optimize_trial.csv"), index=False)
 
     best_params = study.best_params
     best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
 
-    with open(f"{dir}strategy_optimize_params.log", "w") as file:
+    with open(os.path.join(dir, "strategy_optimize_best_params.txt"), "w") as file:
         file.write("Best Trial: " + str(study.best_trial.number) + "\n")
         file.write("Best Loss: " + str(study.best_value) + "\n")
         file.write("Best Parameters:\n" + best_params_str)
+        

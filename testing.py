@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 dir = input("Enter Directory: ")
 
 downloader = Downloader()
-data = downloader.get_historical_data(start_date="2021-01-01", end_date="2024-08-12")
+data = downloader.get_historical_data(start_date="2022-01-01", end_date="2024-08-12")
 downloader.close()
 
 ratio = 0.7
@@ -23,15 +23,25 @@ test = data.iloc[train_size:].copy()
 
 del data
 
-TP = 5.5
+TP = 5.0
 SL = 3.0
-Strategies = [BBL, MACD, MA5, MA20, PPO, ROC, CCI, Momentum, PSAR , OBV , Donchian, UO, FI, Vortex]
-min_signals = 2
-max_pos = 5
+Strategies = [MomentumBBL, MA20, PPO, Momentum, Donchian, UO, FI, Volume_MA]
+min_signals = 3
+max_pos = 10
+
+# TP: 5.0
+#  SL: 3.0
+# Min Signals: 3
+# Max Pos:10
+# Strategies: ['Donchian', 'Force Index', 'MA20', 'Momentum', 'MomentumBBL', 'PPO', 'UO', 'Volume_MA']
+# Winrate: 0.4128532360984503
+# Mean Pnl: 0.735255241567894
+# Sharpe Ratio: 1.5038902925981839
 
 insample = Backtesting(
     data=train,
     initial_balance=2e9,
+    cost=0.07,
     TP=TP,
     SL=SL,
     max_pos=max_pos,
@@ -46,6 +56,7 @@ except Exception as e:
 outsample = Backtesting(
     data=test,
     initial_balance=2e9,
+    cost=0.07,
     SL=SL,
     TP=TP,
     max_pos=max_pos,

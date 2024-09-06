@@ -1,8 +1,8 @@
 
-                TP: 2.0, SL: 2.5
-                Expected PnL: 1.1022444444444444
-                Hitting Probability: 0.5711111111111111
-                Strategies: ['Bollinger Bands', 'MA5', 'MA20', 'ROC', 'TSI', 'MomentumBBL', 'Keltner', 'PSAR', 'Donchian', 'UO']
-                Winrate: 0.5306918982850385, Mean Pnl: 0.18082909520992227
-Loss: -0.4533587966925859
+TP: 1.0, SL: 2.5
+Expected PnL: 0.6828857142857142
+Hitting Probability: 0.7342857142857142
+Strategies: ['MA20', 'ROC', 'TSI', 'ATR', 'Volume_MA', 'SO', 'UO']
+Winrate: 0.6046599734798257, Mean Pnl: -0.43253835953780967
+Loss: -0.9049654919680141
                 
