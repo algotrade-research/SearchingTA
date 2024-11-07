@@ -1,8 +1,0 @@
-
-TP: 4.5, SL: 4.0
-Expected PnL: 2.1211882352941176
-Hitting Probability: 0.47882352941176476
-Strategies: ['RSI', 'Bollinger Bands', 'MACD', 'MA5', 'MA20', 'TSI', 'ADX', 'CCI', 'Volume_MA', 'Keltner', 'SO', 'Williams R', 'Donchian']
-Winrate: 0.46012471283229406, Mean Pnl: 0.8272760091893536
-Loss: -0.32452282184209913
-                

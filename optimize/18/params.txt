@@ -1,8 +1,0 @@
-
-TP: 1.0, SL: 2.5
-Expected PnL: 0.6828857142857142
-Hitting Probability: 0.7342857142857142
-Strategies: ['MA20', 'ROC', 'TSI', 'ATR', 'Volume_MA', 'SO', 'UO']
-Winrate: 0.6046599734798257, Mean Pnl: -0.43253835953780967
-Loss: -0.9049654919680141
-                

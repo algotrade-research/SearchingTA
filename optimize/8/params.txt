@@ -1,8 +1,0 @@
-
-TP: 2.0, SL: 4.5
-Expected PnL: 1.3569384615384616
-Hitting Probability: 0.7030769230769232
-Strategies: ['PPO', 'ROC', 'ATR', 'ADX', 'MomentumBBL', 'Keltner', 'Williams R', 'PSAR']
-Winrate: 0.5893844452635459, Mean Pnl: -1.0151566531515002
-Loss: -0.9549149317838554
-                

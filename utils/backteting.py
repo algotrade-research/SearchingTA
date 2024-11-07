@@ -9,37 +9,6 @@ from tqdm import tqdm
 from .processor import processor
 
 class AbstractBacktesting(ABC):
-    """
-    Abstract class for backtesting
-
-    Attributes:
-        data (pd.DataFrame): The historical data used for backtesting.
-        initial_balance (float): The initial balance for the backtesting account.
-        cost (float): The transaction cost in percentage.
-        slippage (float): The slippage in percentage.
-        TP (float): The take profit level in percentage.
-        SL (float): The stop loss level in percentage.
-        max_pos (int): The maximum number of positions allowed.
-        position_size (float): The position size as a percentage of the account balance.
-        model (object): The model used for generating trading signals.
-        window (int): The window size for generating signals.
-        MP (bool): Flag indicating whether to use market price or close price for backtesting.
-        balance (float): The current balance of the backtesting account.
-        _holdings (pd.DataFrame): The dataframe to track open positions.
-        _history (pd.DataFrame): The dataframe to track trade history.
-
-    Methods:
-        open_order(curr_price, signal, date):
-            Abstract method for opening a new order.
-        close_order(curr_price, date):
-            Abstract method for closing an existing order.
-        _close_all(curr_price, date):
-            Abstract method for closing all open positions.
-        generate_signals(i):
-            Abstract method for generating trading signals.
-        render():
-            Method for rendering the backtesting results plot.
-    """
     def __init__(self, 
                  data,
                  initial_balance=10000.0,
@@ -90,28 +59,6 @@ class AbstractBacktesting(ABC):
     @abstractmethod
     def generate_signals(self, i):
         pass
-
-    def render(self):
-        # Prepare data for plotting
-        dates = self.data.index
-        prices = self.data['price'].resample("1T").ffill()
-        signals = self._history['signal']
-        
-        # Create a figure
-        fig = go.Figure()
-        
-        # Add price trace
-        fig.add_trace(go.Scatter(x=dates, y=prices, mode='lines', name='Price'))
-        
-        fig.add_trace(go.Scatter(x=dates[signals == 'buy'], y=prices[signals == 'buy'], mode='markers', marker=dict(color='green'), name='Buy Signal'))
-        fig.add_trace(go.Scatter(x=dates[signals == 'sell'], y=prices[signals == 'sell'], mode='markers', marker=dict(color='red'), name='Sell Signal'))
-        
-        # Update layout for readability
-        fig.update_layout(title='Backtesting Results', xaxis_title='Date', yaxis_title='Price', legend_title='Legend')
-        
-        # Render the plot
-        fig.show()
-
 
 
 class Backtesting(AbstractBacktesting):
@@ -173,19 +120,19 @@ class Backtesting(AbstractBacktesting):
         # Long Position Exit at Bid price.
         # Short Position Exit at Ask price.
         closed_positions = []
-        pnl = 0.0
+        total_pnl = 0.0
         
         for i, row in self._holdings.iterrows():
             should_close = False
             if row["signal"] == "buy":
                 if bid_price >= row["TP"] or bid_price <= row["SL"]:
-                    pnl += (bid_price - row["price"])
+                    pnl = (bid_price - row["price"])
                     should_close = True
                     row["close_price"] = bid_price
 
             else:  # sell
                 if ask_price <= row["TP"] or ask_price >= row["SL"]:
-                    pnl += (row["price"] - ask_price)
+                    pnl = (row["price"] - ask_price)
                     should_close = True
                     row["close_price"] = ask_price
 
@@ -200,6 +147,7 @@ class Backtesting(AbstractBacktesting):
                 row["close_time"] = date
                 self._history = pd.concat([self._history, pd.DataFrame([row])], ignore_index=True)
                 closed_positions.append(i)
+                total_pnl += pnl
 
         # Remove closed positions from holdings
         self._holdings.drop(closed_positions, inplace=True)
@@ -261,11 +209,12 @@ class Backtesting(AbstractBacktesting):
         signals = []
 
         for strategy in self.strategy:
-            signal = strategy(self.data_ohlc.loc[:datetime.round("min")])
+            signal = strategy(self.data_ohlc[self.data_ohlc <= datetime])
             signals.append(signal)
 
-        if len(signals) < self.min_signals:
+        if np.abs(sum(signals)) < self.min_signals:
             return 0
+        
         # Validate conflicted signals
         signals = set(signals)
         
@@ -559,13 +508,6 @@ class OptimzeBacktesting(AbstractBacktesting):
                     'orders': len(self.order_book)
                 })
                 pbar.update(1)                                    
-
-                # Update the progress bar
-                
-                # if Equity < (self.data.loc[self.data.index[0], "Equity"] * 0.5):
-                #     break
-
-        # self.render()
 
     
     def get_results(self) -> pd.DataFrame:

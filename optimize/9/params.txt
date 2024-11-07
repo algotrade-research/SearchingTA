@@ -1,8 +1,0 @@
-
-TP: 4.5, SL: 3.0
-Expected PnL: 1.8133466666666664
-Hitting Probability: 0.4093333333333333
-Strategies: ['RSI', 'MACD', 'VWAP', 'PPO', 'ATR', 'CCI', 'MomentumBBL', 'Keltner', 'SO', 'Williams R', 'OBV', 'Force Index', 'Vortex']
-Winrate: 0.3894080996884735, Mean Pnl: -0.8144236760124761
-Loss: -0.7489023410836699
-                

@@ -1,8 +1,0 @@
-
-TP: 5.0, SL: 2.5
-Expected PnL: 1.6893466666666663
-Hitting Probability: 0.3426666666666666
-Strategies: ['MA20', 'PPO', 'TSI', 'Momentum', 'Volume_MA', 'MomentumBBL', 'PSAR', 'Donchian', 'UO', 'Force Index']
-Winrate: 0.3948841447539703, Mean Pnl: 2.589757875553218
-Loss: 0.34268969143602634
-                

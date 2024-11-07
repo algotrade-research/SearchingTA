@@ -1,8 +1,0 @@
-
-                TP: 4.0, SL: 1.5
-                Expected PnL: 1.1218363636363637
-                Hitting Probability: 0.28545454545454546
-                Strategies: ['MA5', 'MA20', 'ROC', 'TSI', 'MomentumBBL', 'PSAR', 'Donchian', 'UO']
-                Winrate: 0.3248104989252178, Mean Pnl: 0.8376371761511262
-Loss: -0.05773136552893987
-                

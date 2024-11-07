@@ -1,6 +1,0 @@
-TP: 5.5
- SL: 3.0
- Strategies: [<function BBL at 0x7a0ae4ddaa70>, <function MACD at 0x7a0ae4ddab00>, <function MA5 at 0x7a0ae4ddac20>, <function MA20 at 0x7a0ae4ddacb0>, <function PPO at 0x7a0ae4ddad40>, <function ROC at 0x7a0ae4ddadd0>, <function CCI at 0x7a0ae4ddb010>, <function Momentum at 0x7a0ae4ddb0a0>, <function PSAR at 0x7a0ae4ddb370>, <function OBV at 0x7a0ae4ddb400>, <function Donchian at 0x7a0ae4ddb490>, <function UO at 0x7a0ae4ddb5b0>, <function FI at 0x7a0ae4ddb640>, <function Vortex at 0x7a0ae4ddb6d0>]
- Winrate: 0.4004780876494024
- Mean Pnl: 0.9055187250995821
- Sharpe Ratio: 1.67509166519971

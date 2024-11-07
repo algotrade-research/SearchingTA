@@ -1,8 +1,0 @@
-
-TP: 2.0, SL: 4.5
-Expected PnL: 1.3569384615384616
-Hitting Probability: 0.7030769230769232
-Strategies: ['MACD', 'VWAP', 'ADX', 'Momentum', 'MomentumBBL', 'Williams R', 'OBV', 'UO', 'Force Index', 'Vortex']
-Winrate: 0.5922592259225923, Mean Pnl: -0.5738163816381675
-Loss: -0.790246963835397
-                

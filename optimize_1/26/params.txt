@@ -1,8 +1,0 @@
-TP: 6.0
- SL: 3.0
-Min Signals: 5
-Max Pos:9
-Strategies: ['value', 'datetime_start', 'datetime_complete', 'duration', 'Donchian', 'Force Index', 'MA20', 'Momentum', 'MomentumBBL', 'PPO', 'UO', 'Volume_MA', 'state']
-Winrate: 0.3823560824522055
-Mean Pnl: 0.5809313254298649
-Sharpe Ratio: 1.258917921789119
