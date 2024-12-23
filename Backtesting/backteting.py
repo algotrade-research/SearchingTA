@@ -73,10 +73,11 @@ class Backtesting(AbstractBacktesting):
                  TP=1, 
                  SL=1,
                  max_pos=1e19, 
-                 position_size=0.3,
+                 position_size=1,
                  model=None,
                  window=50,
                  MP=False,
+                 margin=0.25,
                  min_signals=0):
         super().__init__(data, initial_balance, cost, slippage, TP, SL, max_pos, position_size, model, window, MP)
 
@@ -85,6 +86,7 @@ class Backtesting(AbstractBacktesting):
         self.time_out = time_out
         self.min_signals = min_signals
         self.process_data(interval)
+        self.margin = margin
 
     
     def process_data(self, interval):
@@ -219,7 +221,72 @@ class Backtesting(AbstractBacktesting):
         signals = set(signals)
         
         return sum(signals)
-    
+        
+    def check_margin(self, curr_price) -> bool:
+        """
+        Check if the account meets margin requirements. If not, force liquidate positions.
+        """
+        # Calculate the required margin
+        total_position_value = sum(
+            row["position"] for _, row in self._holdings.iterrows()
+        )
+        required_margin = self.margin * total_position_value
+
+        # Calculate equity
+        unrealized_pnl = sum(
+            (curr_price - row["price"]) * row["position_size"] if row["signal"] == "buy" else
+            (row["price"] - curr_price) * row["position_size"]
+            for _, row in self._holdings.iterrows()
+        )
+        equity = self.balance + unrealized_pnl
+
+        # Check if equity meets the required margin
+        while equity < required_margin and not self._holdings.empty:
+            # Force liquidate the position with the lowest PnL
+            self._holdings["unrealized_pnl"] = self._holdings.apply(
+                lambda row: (curr_price - row["price"]) * row["position_size"] if row["signal"] == "buy" else
+                            (row["price"] - curr_price) * row["position_size"],
+                axis=1
+            )
+            lowest_pnl_index = self._holdings["unrealized_pnl"].idxmin()
+            row = self._holdings.loc[lowest_pnl_index]
+
+            # Close the position
+            close_price = curr_price
+            pnl = (close_price - row["price"]) * row["position_size"] if row["signal"] == "buy" else \
+                (row["price"] - close_price) * row["position_size"]
+            self.balance += pnl
+            self._history = pd.concat([self._history, pd.DataFrame([{
+                "date": pd.Timestamp.now(),
+                "price": row["price"],
+                "signal": row["signal"],
+                "position_size": row["position_size"],
+                "position": row["position"],
+                "TP": row["TP"],
+                "SL": row["SL"],
+                "close_price": close_price,
+                "pnl": pnl,
+                "close_time": pd.Timestamp.now()
+            }])], ignore_index=True)
+
+            # Remove the position
+            self._holdings.drop(index=lowest_pnl_index, inplace=True)
+
+            # Recalculate equity and required margin
+            unrealized_pnl = sum(
+                (curr_price - row["price"]) * row["position_size"] if row["signal"] == "buy" else
+                (row["price"] - curr_price) * row["position_size"]
+                for _, row in self._holdings.iterrows()
+            )
+            equity = self.balance + unrealized_pnl
+            total_position_value = sum(
+                row["position"] for _, row in self._holdings.iterrows()
+            )
+            required_margin = self.margin * total_position_value
+
+        # Return whether the account meets margin requirements after adjustments
+        return equity >= required_margin
+
     def backtest(self) -> None:
         # Initialize the progress bar
         with tqdm(total=len(self.data - self.window) - 10, desc="Backtesting Progress") as pbar:
@@ -232,7 +299,7 @@ class Backtesting(AbstractBacktesting):
                 bid_price = self.data["bid_price"].iloc[i+1] if (self.data["bid_price"].iloc[i+1] is not np.nan) else self.data["bid_price"].iloc[i]
                 ask_price = self.data["ask_price"].iloc[i+1] if (self.data["ask_price"].iloc[i+1] is not np.nan) else self.data["ask_price"].iloc[i]
                 close_price = self.data_ohlc.close[datetime.floor("min")]
-
+                                
                 time = datetime.time()
                 if time >= pd.to_datetime('09:15').time() and time <= pd.to_datetime('14:30').time():
                     signal = self.generate_signals(datetime) if time <= pd.to_datetime('14:20').time() else 0
