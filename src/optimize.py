@@ -8,12 +8,7 @@ from typing import List
 from utils import *
 from strategy import *
 
-def initialize_logging(log_dir: str) -> None:
-    """Initializes logging settings."""
-    log_path = os.path.join(log_dir, "strategy_optimize.log")
-    logging.basicConfig(filename=log_path, level=logging.INFO,
-                        format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    logging.info("Start Optimization")
+
 
 def download_data(start_date: str, end_date: str) -> pd.DataFrame:
     """Downloads historical data within a specified date range."""

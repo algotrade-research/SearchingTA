@@ -1,4 +1,16 @@
 import pandas as pd
+import warnings
+import logging
+import os
+
+def initialize_logging(log_dir: str) -> None:
+    warnings.filterwarnings('ignore')
+    """Initializes logging settings."""
+    logging.basicConfig(filename=log_dir, level=logging.INFO,
+                        format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(filename=os.path.join(log_dir, "working.log"), level=logging.INFO, format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    logging.info("Logging Initialized")
+
 def load_best_parameters(filepath: str) -> dict:
     """Loads best parameters from a CSV file."""
     try:

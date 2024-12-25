@@ -1,4 +1,3 @@
-
 class BacktestConfig:
     """
         Configuration for the backtesting simulation.
@@ -11,8 +10,8 @@ class BacktestConfig:
     """
     def __init__(self, 
                  initial_balance: float=10000.0, 
-                 cost: float=0.07, 
-                 slippage: float | None =None, 
+                 cost: float=0.07,
+                 slippage: float = 0, 
                  TP: float=None, 
                  SL: float=None, 
                  max_pos: int=5, 
@@ -20,11 +19,13 @@ class BacktestConfig:
                  margin: float=0.25,
                  min_signals = 2,
                  mode: 'one_way' | 'hedged'= 'one_way',
-                 side: 'long' | 'short' = None):
+                 side: 'long' | 'short' = None,
+                 time_out: int=30, 
+                 ) -> None:
         assert 1 <= position_size, f"Position size must be between 0 and 1. {position_size}"
         assert 0.2 <= margin <= 1, f"Margin must be between 0 and 1. {margin}"
         assert TP is not None and SL is not None, "TP and SL must be provided."
-        assert (mode=='one_way' and side is not None) or mode=='hedged', "Side must be provided for One
+        assert (mode=='one_way' and side is not None) or mode=='hedged', "Side must be provided for One"
         
         self.initial_balance = initial_balance
         self.cost = cost
@@ -37,6 +38,8 @@ class BacktestConfig:
         self.min_signals = 2
         self.mode = mode
         self.side = side
+        self.min_signals = min_signals
+        self.time_out = time_out
     
     def __str__(self):
         return f"""

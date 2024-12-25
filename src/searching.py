@@ -1,154 +1,190 @@
+from typing import List, Callable, Tuple
+import warnings
+import os
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
 from utils import *
 from strategy import *
+from backtest import *
 import optuna
-import os
-from typing import List
-import warnings
-from concurrent.futures import ThreadPoolExecutor
-import logging
 
-warnings.filterwarnings('ignore')
-def searching():
-    dir = 'searching'
-    os.makedirs(dir, exist_ok=True)
-    logging.basicConfig(filename=os.path.join(dir, "searching.log"), level=logging.INFO, format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+class Searching:
+    """
+        Seaching Potential Strategies
+    """
+    def __init__(self, 
+                 number_of_trials: int,
+                 dir: str = 'searching',
+                 data: pd.DataFrame = None,
+                 SL: Tuple[float, float] = (1, 10),
+                 TP: Tuple[float, float] = (1, 10),
+                 side: 'long' | 'short' = None,
+                 mode: 'one_way' | 'hedged' = 'one_way'
+                 ):
+        assert data is not None, "Data must be provided"
+        assert len(data) > 0, "Data must not be empty"
+        assert len(data.columns) > 0, "Data must have columns"
+        assert (mode == 'one_way' and side is not None) or mode == 'hedged', "Side must be provided for One way"
+        assert side in ['long', 'short', None], "Side must be either 'long', 'short' or None"
+        self._dir: str = 'searching'
+        self.TP = TP
+        self.SL = SL
+        self.side = side
+        self.mode = mode
 
-    number_of_trials = int(input("Number of Trials: "))
+        # initialize directory
+        os.makedirs(dir, exist_ok=True)
+        initialize_logging(dir)
 
-    # Download historical data
-    downloader = Downloader()
+        self.number_of_trials: int = number_of_trials
+        self.data: pd.DataFrame = data
+        self.bt = None
 
-    print("Downloading Data...")
-    data = downloader.get_historical_data(start_date="2022-01-01", end_date="2024-08-12")
-    downloader.close()
-
-    del downloader
-
-    # Train test  Split
-    print("Train test split")
-    # Train test  Split
-    ratio = 0.7
-    train_size = int(ratio * len(data))
-
-    train = data.iloc[:train_size].copy()
-    test = data.iloc[train_size:].copy()
-    del data
-
-    optimize_data = train.iloc[:int(0.5 * len(train))].copy()
-
-    # Optmize
-    optimize_result = []
-
-    def objective(trial):
-        cost = 0.07
-        TP = trial.suggest_float("TP", 1, 5, step=0.5)
-        SL = trial.suggest_float("SL", 1, 5, step=0.5)
-        
-        
-        selected_strategies = []
-        strategies = []
-        for strategy_name, strategy_function in strategy_options:
-            if trial.suggest_categorical(strategy_name, [True, False]):
-                selected_strategies.append(strategy_name)
-                strategies.append(strategy_function)
-        
-        min_signals = trial.suggest_int("min_signals", 1, 5 if len(strategies) > 5 else len(strategies))
-        backtester = OptimzeBacktesting(
-            strategy=strategies, 
-            data=optimize_data,
-            initial_balance=2e9, 
-            cost=cost, 
-            slippage=0.25, 
-            TP=TP, 
-            SL=SL, 
-            max_pos=1e10, 
-            min_signals=min_signals
+    def configure(self,
+                  strategies: List[Callable],
+                  initial_balance: float=10000.0, 
+                  cost: float=0.07,
+                  slippage: float = 0, 
+                  TP: float=None, 
+                  SL: float=None, 
+                  max_pos: int=5, 
+                  position_size: int=1, 
+                  margin: float=0.25,
+                  min_signals = 2,
+                  mode: 'one_way' | 'hedged'= 'one_way',
+                  side: 'long' | 'short' = None):
+        """
+            Configure the backtesting environment
+        """
+        self.bt_config = BacktestConfig(
+            cost=cost,
+            initial_balance=initial_balance,
+            slippage=slippage,
+            max_pos=max_pos,
+            TP=TP,
+            SL=SL,
+            position_size=position_size,
+            margin=margin,
+            side=side,
+            min_signals=min_signals,
+            initial_balance=10e19,
+            margin=0.25,
+            mode=mode
         )
         
+        self.bt = Backtesting(
+            strategy=strategies,
+            data=self.data,
+            config= self.bt_config
+        )
+        return f"""
+            Strategies: {[strategy.__name__ for strategy in strategies]}
+        """ + str(self.bt_config)
+    
+    def objective(self, history: pd.DataFrame, TP: float, SL: float) -> float:
+        """
+            Objective function to optimize 
+            
+            The goal here is to find a profitable strategy which has a high winrate
+            and a high mean PnL
+
+            The objective function is defined as the loss, which is calculated as follow:
+                - break_even_prob = (SL + 2*cost) / (SL + TP)
+                - expected_pnl = TP * break_even_prob
+                - mean_pn: which is the profit and loss of the strategy
+                - winrate: the percentage of winning trades
+
+                objective = (winrate / break_even_prob - 1) + (mean_pnl / expected_pnl - 1)
+                
+            The find the optimal strategy, we by maximizing the objective function
+        """
+        break_even_prob = (SL + 2*self.bt_config.cost) / (SL + TP)
+        expected_pnl = TP * 
+        
+        pnl = history['pnl']
+        mean_pnl = pnl.mean()
+        winrate = (pnl > 0).astype(int).mean()
+
+        loss = (winrate / break_even_prob - 1) + (mean_pnl / expected_pnl - 1)
+
+        return loss
+
+    def seaching_objective(self, trial):
+        TP = trial.suggest_float("TP", self.TP[0], self.TP[1], step=0.5)
+        SL = trial.suggest_float("SL", self.SL[0], self.SL[1], step=0.5)
+        
+        selected_strategies = []
+        for strategy_name, strategy_function in strategy_options:
+            if trial.suggest_categorical(strategy_name, [True, False]):
+                selected_strategies.append(strategy_function)
+
+        self.configure(
+            strategies=selected_strategies,
+            TP=TP,
+            SL=SL,
+            side=self.side,
+            mode=self.mode
+        )
+
+        assert self.bt is not None, "Backtesting environment must be configured"
+
         try:
-            backtester.backtest()
+            self.bt.run()
+            history = self.bt.portfolio.history
+
+            nav = self.bt.data['balance']
+            equity = self.bt.data['balance']
             
-            pnl_series: pd.Series = backtester._history['pnl']
-            mean_pnl = pnl_series.mean()
-            winrate = (pnl_series > 0).astype(int).sum() / len(pnl_series)
+            os.makedirs(os.path.join(self._dir, str(trial.number)), exist_ok=True)
             
-            print("Mean PnL: ", mean_pnl, "Winrate: ", winrate)
-            
-            # BaseLine
-            sl, tp = SL + cost, TP - cost
-            hitting_prob = sl / (sl + tp)
-            expected_pnl = tp * hitting_prob
-            
-            loss = float((mean_pnl / expected_pnl - 1) + (winrate / hitting_prob - 1)) / 2
-            
-            subdir_name = f"{trial.number}"
-            os.makedirs(os.path.join("searching", subdir_name), exist_ok=True)
-            backtester._history.to_csv(os.path.join("searching", subdir_name, "history.csv"))
-            
-            file_path = os.path.join("searching", subdir_name, "params.txt")
-            with open(file_path, "w") as file:
-                file.write(
-                    f"""
-    TP: {TP}, SL: {SL}
-    Expected PnL: {expected_pnl}
-    Hitting Probability: {hitting_prob}
-    Strategies: {selected_strategies}
-    Winrate: {winrate}, Mean Pnl: {mean_pnl}
-    Loss: {loss}
-                    """
-                    )
-            
-            logging.info(f"-- {trial.number} --")
-            logging.info(f"Strategy: {selected_strategies}, TP: {TP}, SL: {SL}")
-            logging.info(f"Winrate: {winrate}")
-            logging.info(f"Mean PnL: {mean_pnl}")
-            logging.info(f"Loss: {loss}")
-            logging.info(f"Number Of Trade: {len(pnl_series)}")
-            logging.info(f"=============================\n\n")
-            
+            # save the history, nav and equity
+            history.to_csv(os.path.join(self._dir, str(trial.number), "history.csv"))
+            nav.to_csv(os.path.join(self._dir + '/' + str(trial.number), "nav.csv"))
+            equity.to_csv(os.path.join(self._dir + '/' + str(trial.number), "equity.csv"))
+            params = {
+                "TP": TP,
+                "SL": SL,
+                "strategies": [strategy.__name__ for strategy in selected_strategies]
+            }
+
+            loss = self.objective(history, TP, SL)
+
+            with open(os.path.join(self._dir + '/' + str(trial.number), "params.py"), "w") as file:
+                file.write(f'# Parameters {loss}\n')
+                file.write(str(params))
             return loss
+        
         except Exception as e:
-            print(f"Error: {e}")
-            return -1
+            logging.error(f"Error: {e}")
 
-    print("Start Searching...")
 
-    try:
-        study = optuna.create_study(direction="maximize")
-        study.optimize(objective, n_trials=number_of_trials, n_jobs=100)
+    def run(self, name: str=''):
+        try:
+            study = optuna.create_study(direction="maximize",
+                                        study_name=f"searching_{name}",
+                                        storage="sqlite:///searching.db", 
+                                        load_if_exists=True)    
 
-        df_trials = study.trials_dataframe()
-        df_trials.to_csv("optuna_trials.csv", index=False)
+            study.optimize(self.seaching_objective, n_trials=self.number_of_trials, n_jobs=2)
 
-        best_params = study.best_params
-        best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
+            df_trials = study.trials_dataframe()
+            df_trials.to_csv("optuna_trials.csv", index=False)
 
-        with open("best_params.log", "w") as file:
-            file.write("Best Trial: " + str(study.best_trial.number) + "\n")
-            file.write("Best Loss: " + str(study.best_value) + "\n")
-            file.write("Best Parameters:\n" + best_params_str)
+            best_params = study.best_params
+            best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
+
+            with open(f"{self._dir}/best_params.log", "w") as file:
+                file.write("Best Trial: " + str(study.best_trial.number) + "\n")
+                file.write("Best Loss: " + str(study.best_value) + "\n")
+                file.write("Best Parameters:\n" + best_params_str)
             
-    except KeyboardInterrupt:
-        df_trials = study.trials_dataframe()
-        df_trials.to_csv("optuna_trials.csv", index=False)
-
-        best_params = study.best_params
-        best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
-
-        with open("best_params.log", "w") as file:
-            file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
-            file.write("Best Parameters:\n" + best_params_str)
             
-    except Exception as e:
-        df_trials = study.trials_dataframe()
-        df_trials.to_csv(os.path.join(dir, "optuna_trials.csv"), index=False)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            best_params = study.best_params
+            best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
 
-        best_params = study.best_params
-        best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
-
-        with open(os.path.join(dir, "best_params.log"), "w") as file:
-            file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
-            file.write("Best Parameters:\n" + best_params_str)
-
-if __name__ == "__main__":
-    searching()
+            with open(os.path.join(dir, "best_params.log"), "w") as file:
+                file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
+                file.write("Best Parameters:\n" + best_params_str)

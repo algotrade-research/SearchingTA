@@ -92,7 +92,7 @@ class Portfolio:
         for i, row in self.holdings.iterrows():
             if (
                 (row["signal"] == "buy" and (bid_price >= row["TP"] or bid_price <= row['SL'])) or
-                (row["signal"] == "sell" and (ask_price <= row['TP'] or ask_price >= row['SL'])) or
+                (row["signal"] == "sell" and (ask_price <= row['TP'] or ask_price >= row['SL']))
             ):
                 to_close.append(i)
         for i in to_close:    
