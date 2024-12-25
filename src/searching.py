@@ -128,39 +128,39 @@ class Searching:
 
         assert self.bt is not None, "Backtesting environment must be configured"
 
-        try:
-            self.bt.run_backtest(name=trial.number)
-            history = self.bt.portfolio.history
+        # try:
+        self.bt.run_backtest(name=trial.number)
+        history = self.bt.portfolio.history
 
-            if len(history) == 0:
-                return 0
+        if len(history) == 0:
+            return 0
 
-            nav = self.bt.data['balance']
-            equity = self.bt.data['equity']
-            
-            os.makedirs(os.path.join(self._dir, str(trial.number)), exist_ok=True)
-            
-            # save the history, nav and equity
-            history.to_csv(os.path.join(self._dir, str(trial.number), "history.csv"))
-            nav.to_csv(os.path.join(self._dir + '/' + str(trial.number), "nav.csv"))
-            equity.to_csv(os.path.join(self._dir + '/' + str(trial.number), "equity.csv"))
-            params = {
-                "TP": TP,
-                "SL": SL,
-                "strategies": [strategy.__name__ for strategy in selected_strategies]
-            }
-
-            loss = self.objective(history, TP, SL)
-
-            logging.info(f"Trial {trial.number} - Strategies: {selected_strategies}, TP: {TP}, SL: {SL} - Loss: {loss}")
-
-            with open(os.path.join(self._dir + '/' + str(trial.number), "params.py"), "w") as file:
-                file.write(f'# Parameters {loss}\n')
-                file.write(str(params))
-            return loss
+        balance = self.bt.data['balance']
+        equity = self.bt.data['equity']
         
-        except Exception as e:
-            logging.error(f"Error: {e}")
+        os.makedirs(os.path.join(self._dir, str(trial.number)), exist_ok=True)
+        
+        # save the history, nav and equity
+        history.to_csv(os.path.join(self._dir, str(trial.number), "history.csv"))
+        balance.to_csv(os.path.join(self._dir + '/' + str(trial.number), "balance.csv"))
+        equity.to_csv(os.path.join(self._dir + '/' + str(trial.number), "equity.csv"))
+        params = {
+            "TP": TP,
+            "SL": SL,
+            "strategies": [strategy.__name__ for strategy in selected_strategies]
+        }
+
+        loss = self.objective(history, TP, SL)
+
+        logging.info(f"Trial {trial.number} - Strategies: {selected_strategies}, TP: {TP}, SL: {SL} - Loss: {loss}")
+
+        with open(os.path.join(self._dir + '/' + str(trial.number), "params.py"), "w") as file:
+            file.write(f'# Parameters {loss}\n')
+            file.write(str(params))
+        return loss
+        
+        # except Exception as e:
+        #     logging.error(f"Error: {e}")
 
     def run(self, name: str=''):
 
