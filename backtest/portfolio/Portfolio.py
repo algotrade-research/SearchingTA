@@ -30,8 +30,12 @@ class Portfolio:
         """Close a position and update the portfolio."""
         row = self.holdings.iloc[index]
         close_price = bid_price if row["signal"] == "buy" else ask_price
-        pnl = self._calculate_pnl(row, close_price, config)
+        pnl = self._calculate_pnl(row, bid_price, ask_price, config)
+
+        print(self.balance)
         self.balance += pnl
+        print(self.balance)
+
         row["close_price"] = close_price
         row["close_time"] = date
         row["pnl"] = pnl
@@ -41,7 +45,7 @@ class Portfolio:
         """Calculate the profit or loss for a position."""
         pnl = (bid_price - row["price"]) if row["signal"] == "buy" else (row["price"] - ask_price)
         pnl *= row["position_size"]
-        pnl -= config.slippage * 2 if config.slippage else 0.0
+        pnl -= config.slippage * 2
         pnl -= config.cost
         return pnl
 
@@ -74,19 +78,24 @@ class Portfolio:
         pnl = 0
         for i, row in self.holdings.iterrows():
             row["close_price"] = bid_price if row["signal"] == "buy" else ask_price
-            row["pnl"] = (bid_price - row["price"]) if row["signal"] == "buy" else (row["price"] - ask_price)
+            row["pnl"] = self._calculate_pnl(row, bid_price, ask_price, config)
+            
+            print(self.balance)
+            self.balance += row["pnl"] - config.cost
+            print(self.balance)
+            
             row["close_time"] = date
             pnl += row["pnl"] - config.cost
-            self.history = pd.concat([self._history, pd.DataFrame([row])], ignore_index=True)
+            self.history = pd.concat([self.history, pd.DataFrame([row])], ignore_index=True)
 
         self.holdings = pd.DataFrame(columns=[
             "date", "price", "signal", "position_size", "position", 
             "TP", "SL", "close_price", "close_time", "pnl"
         ])
-        self.balance += pnl
+
         return pnl
 
-    def check_position(self, curr_price, bid_price, ask_price, config):
+    def check_position(self, curr_price, bid_price, ask_price, date, config):
         """Check if the portfolio has reached the maximum number of positions."""
         to_close = []
         for i, row in self.holdings.iterrows():
@@ -96,6 +105,6 @@ class Portfolio:
             ):
                 to_close.append(i)
         for i in to_close:    
-            self.close_position(i, curr_price, config)
+            self.close_position(i, bid_price, ask_price, date, config)
         self.holdings.drop(to_close, inplace=True)
             

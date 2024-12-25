@@ -103,16 +103,23 @@ class Backtesting:
         
         # Validate conflicted signals
         signals = set(signals)
-                
-        return signals
+        # print(sum(signals))
+        signals = sum(signals)
 
-    def run_backtest(self):
+        if self.config.side == 'long':
+            return 1 if signals > 0 else 0
+        elif self.config.side == 'short':
+            return -1 if signals < 0 else 0
+        else:
+            return signals
+
+    def run_backtest(self, name=''):
         """
             Run the backtesting simulation throught the data.
             Buy at Ask price, exit at Bid price
             Sell at Bid price, Exit at Ask price
         """
-        with tqdm(total=len(self.data), desc="Backtesting Progress") as pbar:
+        with tqdm(total=len(self.data), desc=f"{name}-Progress") as pbar:
             for i in range(len(self.data) - 20):
                 datetime = self.data.index[i]
                 
@@ -123,10 +130,9 @@ class Backtesting:
                 bid_price = self.data["bid_price"].iloc[i+1] if (self.data["bid_price"].iloc[i+1] is not np.nan) else self.data["bid_price"].iloc[i]
                 ask_price = self.data["ask_price"].iloc[i+1] if (self.data["ask_price"].iloc[i+1] is not np.nan) else self.data["ask_price"].iloc[i]
                 if time >= pd.to_datetime('09:15').time() and time <= pd.to_datetime('14:30').time():
+                    self.portfolio.check_position(curr_price, bid_price, ask_price, datetime, self.config)
                     buying_power = self.portfolio.buying_power(curr_price, self.config)
-                    
-                    self.portfolio.force_liquidate(curr_price, bid_price, ask_price, self.config, datetime)
-                    
+                                        
                     self.check_orders(curr_price=curr_price, bid_price=bid_price, ask_price=ask_price,date=datetime)
 
                     if buying_power >= 1:
@@ -138,12 +144,15 @@ class Backtesting:
                         self.place_order(curr_price, signal, datetime)
 
                     if not self.portfolio.holdings.empty:
-                        self.portfolio.force_liquidate(curr_price, self.config, datetime)
+                        self.portfolio.force_liquidate(curr_price, bid_price, ask_price, self.config, datetime)
                         
                 # if time is greater than 2:29 PM, close all positions
                 if time >= pd.to_datetime('14:29').time():
                     pnl = self.portfolio._close_all(curr_price, bid_price, ask_price, datetime, self.config)
                 
                 self.data.loc[datetime, "balance"] = self.portfolio.balance
+                if self.config.initial_balance != self.portfolio.balance:
+                    print(self.portfolio.balance)
+        
                 self.data.loc[datetime, "equity"] = self.portfolio.balance + self.portfolio._unrealized_pnl(curr_price)
                 pbar.update(1)

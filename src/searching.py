@@ -20,7 +20,8 @@ class Searching:
                  SL: Tuple[float, float] = (1, 10),
                  TP: Tuple[float, float] = (1, 10),
                  side: ['long', 'short'] = None,
-                 mode: ['one_way', 'hedged'] = 'one_way'
+                 mode: ['one_way', 'hedged'] = 'one_way',
+                 n_jobs: int = 2
                  ):
         assert data is not None, "Data must be provided"
         assert len(data) > 0, "Data must not be empty"
@@ -32,6 +33,7 @@ class Searching:
         self.SL = SL
         self.side = side
         self.mode = mode
+        self.n_jobs = n_jobs
 
         # initialize directory
         os.makedirs(dir, exist_ok=True)
@@ -101,9 +103,9 @@ class Searching:
         
         pnl = history['pnl']
         mean_pnl = pnl.mean()
-        winrate = (pnl > 0).astype(int).mean()
+        winrate = (pnl > 0).astype(int).mean() * 100
 
-        loss = (winrate / break_even_prob - 1) + (mean_pnl / expected_pnl - 1)
+        loss = (winrate / (break_even_prob * 100)) + (mean_pnl / expected_pnl)
 
         return loss
 
@@ -127,14 +129,14 @@ class Searching:
         assert self.bt is not None, "Backtesting environment must be configured"
 
         try:
-            self.bt.run_backtest()
+            self.bt.run_backtest(name=trial.number)
             history = self.bt.portfolio.history
 
             if len(history) == 0:
                 return 0
 
             nav = self.bt.data['balance']
-            equity = self.bt.data['balance']
+            equity = self.bt.data['equity']
             
             os.makedirs(os.path.join(self._dir, str(trial.number)), exist_ok=True)
             
@@ -150,6 +152,8 @@ class Searching:
 
             loss = self.objective(history, TP, SL)
 
+            logging.info(f"Trial {trial.number} - Strategies: {selected_strategies}, TP: {TP}, SL: {SL} - Loss: {loss}")
+
             with open(os.path.join(self._dir + '/' + str(trial.number), "params.py"), "w") as file:
                 file.write(f'# Parameters {loss}\n')
                 file.write(str(params))
@@ -158,15 +162,15 @@ class Searching:
         except Exception as e:
             logging.error(f"Error: {e}")
 
-
     def run(self, name: str=''):
+
         try:
             study = optuna.create_study(direction="maximize",
                                         study_name=f"searching_{name}",
                                         storage="sqlite:///searching.db", 
                                         load_if_exists=True)    
 
-            study.optimize(self.seaching_objective, n_trials=self.number_of_trials, n_jobs=2)
+            study.optimize(self.seaching_objective, n_trials=self.number_of_trials, n_jobs=self.n_jobs)
 
             best_params = study.best_params
             best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
@@ -185,3 +189,99 @@ class Searching:
             # with open(os.path.join(dir, "best_params.log"), "w") as file:
             #     file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
             #     file.write("Best Parameters:\n" + best_params_str)
+
+class SearchConfig:
+    def __init__(self,
+                 number_of_trials: int,
+                 dir: str,
+                 data: pd.DataFrame,
+                 SL: Tuple[float, float],
+                 TP: Tuple[float, float],
+                 side: str,
+                 mode: str,
+                 n_jobs: int):
+        assert data is not None and len(data) > 0, "Data must be provided and not empty"
+        assert len(data.columns) > 0, "Data must have columns"
+        assert mode in ['one_way', 'hedged'], "Mode must be 'one_way' or 'hedged'"
+        assert side in ['long', 'short', None], "Side must be 'long', 'short', or None"
+        if mode == 'one_way':
+            assert side is not None, "Side must be provided for 'one_way' mode"
+
+        self.number_of_trials = number_of_trials
+        self.directory = dir
+        self.data = data
+        self.SL = SL
+        self.TP = TP
+        self.side = side
+        self.mode = mode
+        self.n_jobs = n_jobs
+
+class Searching_:
+    def __init__(self, config: SearchConfig):
+        self.config = config
+        self.bt = None
+
+    def configure(self, strategies: List[Callable], **kwargs):
+        """
+        Configures the backtesting environment.
+        """
+        backtest_config = BacktestConfig(
+            cost=kwargs.get("cost", 0.07),
+            slippage=kwargs.get("slippage", 0),
+            TP=kwargs.get("TP"),
+            SL=kwargs.get("SL"),
+            position_size=kwargs.get("position_size", 1),
+            margin=kwargs.get("margin", 0.25),
+            side=self.config.side,
+            min_signals=kwargs.get("min_signals", 2),
+            initial_balance=10e19,
+            mode=self.config.mode
+        )
+
+        self.bt = Backtesting(
+            strategy=strategies,
+            data=self.config.data,
+            config=backtest_config
+        )
+
+    def objective(self, trial):
+        TP = trial.suggest_float("TP", self.config.TP[0], self.config.TP[1], step=0.5)
+        SL = trial.suggest_float("SL", self.config.SL[0], self.config.SL[1], step=0.5)
+
+        selected_strategies = []
+        for strategy_name, strategy_function in Strategy.get_available_strategies():
+            if trial.suggest_categorical(strategy_name, [True, False]):
+                selected_strategies.append(strategy_function)
+
+        self.configure(
+            strategies=selected_strategies,
+            TP=TP,
+            SL=SL
+        )
+
+        assert self.bt is not None, "Backtesting environment must be configured"
+
+        try:
+            self.bt.run_backtest()
+            history = self.bt.portfolio.history
+
+            if history.empty:
+                return 0
+
+            os.makedirs(os.path.join(self.config.directory, str(trial.number)), exist_ok=True)
+            history.to_csv(os.path.join(self.config.directory, str(trial.number), "history.csv"))
+
+            loss = ObjectiveCalculator.calculate(history, self.bt.config, TP, SL)
+            with open(os.path.join(self.config.directory, str(trial.number), "params.py"), "w") as file:
+                file.write(f"# Parameters {loss}\n")
+                file.write(str({"TP": TP, "SL": SL, "strategies": [s.__name__ for s in selected_strategies]}))
+            return loss
+
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return float('inf')
+
+    def run(self, study_name: str):
+        study = optuna.create_study(direction="maximize", study_name=study_name)
+        study.optimize(self.objective, n_trials=self.config.number_of_trials)
+        logging.info(f"Study completed: {study.best_trial}")
