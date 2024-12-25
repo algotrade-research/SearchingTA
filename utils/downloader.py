@@ -1,5 +1,5 @@
 from typing import Callable, List, Tuple
-import psycopg2
+import pg8000
 import pandas as pd
 
 class Downloader:
@@ -16,7 +16,7 @@ class Downloader:
         self._connect()
     
     def _connect(self) -> None:
-        self.conn = psycopg2.connect(
+        self.conn = pg8000.connect(
             host=self._info["host"],
             port=self._info["port"],
             user=self._info["user"],
@@ -65,7 +65,7 @@ class Downloader:
             result.set_index("datetime", inplace=True)
             result.index = pd.to_datetime(result.index)
             result = result.astype(float)
-            # print(result)
+            # #print(result)
 
             # Convert the DatetimeIndex to just the time component
             times = result.index.time
@@ -93,7 +93,7 @@ class Downloader:
             return result
 
         except Exception as e:
-            print(f"An error occurred: {e}")
+            #print(f"An error occurred: {e}")
             return None
         
     def query(self, query: str) -> pd.DataFrame:
@@ -104,7 +104,7 @@ class Downloader:
             cur.close()
             return pd.DataFrame(result)
         except Exception as e:
-            print(f"An error occurred: {e}")
+            #print(f"An error occurred: {e}")
             return None
     
     def close(self) -> None:

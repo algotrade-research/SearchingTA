@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 from tqdm import tqdm
 from typing import List, Callable
 
-from portfolio import Portfolio
-from backtest_config import BacktestConfig
+from ..portfolio import Portfolio
+from ..backtest_config import BacktestConfig
 
 
 class Backtesting:
@@ -14,8 +14,10 @@ class Backtesting:
     def __init__(self,      
                  strategy: List[Callable], 
                  data: pd.DataFrame, 
-                 config: BacktestConfig = BacktestConfig(), 
-                 interval="1min"):
+                 config: BacktestConfig = None, 
+                 interval=1):
+        
+        assert config is not None, "Config must be provided"
         self.strategy = strategy
         self.data = data
         self.config = config
@@ -26,15 +28,19 @@ class Backtesting:
         self.data["balance"] = config.initial_balance
         self.prevdate = 0
 
-    def _process_data(self, interval):
+    def _process_data(self, min):
         """Preprocess and resample data."""
+        interval = f"{min}T"
         ohlcv = self.data.resample(interval).agg({
             "price": "ohlc", 
             "volume": "sum"
         }).dropna()
-        ohlcv = processor(ohlcv)
         ohlcv.columns = ohlcv.columns.droplevel(0)
-        ohlcv.index = ohlcv.index.shift(1)
+        # #print(ohlcv)
+        ohlcv = processor(ohlcv)
+        ohlcv = ohlcv.shift(1).dropna().astype(float)
+
+        #print(ohlcv)
 
         self.data = self.data.loc[ohlcv.index[20]:ohlcv.index[-1]]
         return ohlcv
@@ -80,7 +86,7 @@ class Backtesting:
 
     def generate_signals(self, datetime):
         """Generate trading signals."""
-        process_data = self.process_data.loc[self.process_data.index <= datetime]
+        process_data = self.process_data.loc[self.process_data.index <= datetime].tail(20)
 
         if self.prevdate == process_data.index[-1]:
             return 0
@@ -88,7 +94,7 @@ class Backtesting:
             self.prevdate = process_data.index[-1]
         
         signals = [
-            strategy().tail(20) 
+            strategy(process_data)
             for strategy in self.strategy
         ]
 
@@ -107,18 +113,19 @@ class Backtesting:
             Sell at Bid price, Exit at Ask price
         """
         with tqdm(total=len(self.data), desc="Backtesting Progress") as pbar:
-            for i in range(len(self.data)):
+            for i in range(len(self.data) - 20):
                 datetime = self.data.index[i]
                 
                 # check if in continuos trading hours
+                #print(self.data)
                 time = datetime.time()
+                curr_price = self.data["price"].iloc[i]
+                bid_price = self.data["bid_price"].iloc[i+1] if (self.data["bid_price"].iloc[i+1] is not np.nan) else self.data["bid_price"].iloc[i]
+                ask_price = self.data["ask_price"].iloc[i+1] if (self.data["ask_price"].iloc[i+1] is not np.nan) else self.data["ask_price"].iloc[i]
                 if time >= pd.to_datetime('09:15').time() and time <= pd.to_datetime('14:30').time():
-                    curr_price = self.data["close"].iloc[i]
-                    bid_price = self.data["bid_price"].iloc[i+1] if (self.data["bid_price"].iloc[i+1] is not np.nan) else self.data["bid_price"].iloc[i]
-                    ask_price = self.data["ask_price"].iloc[i+1] if (self.data["ask_price"].iloc[i+1] is not np.nan) else self.data["ask_price"].iloc[i]
                     buying_power = self.portfolio.buying_power(curr_price, self.config)
                     
-                    self.check_margin(curr_price)
+                    self.portfolio.force_liquidate(curr_price, bid_price, ask_price, self.config, datetime)
                     
                     self.check_orders(curr_price=curr_price, bid_price=bid_price, ask_price=ask_price,date=datetime)
 
@@ -135,7 +142,7 @@ class Backtesting:
                         
                 # if time is greater than 2:29 PM, close all positions
                 if time >= pd.to_datetime('14:29').time():
-                    pnl = self.portfolio._close_all(curr_price, bid_price, ask_price, datetime)
+                    pnl = self.portfolio._close_all(curr_price, bid_price, ask_price, datetime, self.config)
                 
                 self.data.loc[datetime, "balance"] = self.portfolio.balance
                 self.data.loc[datetime, "equity"] = self.portfolio.balance + self.portfolio._unrealized_pnl(curr_price)

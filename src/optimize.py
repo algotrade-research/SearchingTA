@@ -61,7 +61,7 @@ def objective(trial, optimize_data, TP_, SL_, min_signals, strategies, dir) -> f
         loss = sharpe_ratio - 1
         return loss
     except Exception as e:
-        print(f"Error in objective function: {e}")
+        #print(f"Error in objective function: {e}")
         return -1
 
 def optimize():
@@ -71,7 +71,7 @@ def optimize():
     initialize_logging(dir)
     warnings.filterwarnings('ignore')
 
-    print("Downloading Data...")
+    #print("Downloading Data...")
     data = download_data(start_date="2022-01-01", end_date="2024-08-12")
     train, test = train_test_split(data, ratio=0.7)
     optimize_data = train.iloc[:int(0.5 * len(train))].copy()
@@ -80,11 +80,11 @@ def optimize():
     TP_, SL_, min_signals, strategies_names = parse_best_params(best_params)
 
     strategies = [strategy for strategy_name, strategy in strategy_options if strategy_name in strategies_names]
-    print("Params:", TP_, SL_, min_signals, strategies_names)
+    #print("Params:", TP_, SL_, min_signals, strategies_names)
 
     # Start optimization
     try:
-        print("Start Searching...")
+        #print("Start Searching...")
         study = optuna.create_study(direction="maximize")
         study.optimize(lambda trial: objective(trial, optimize_data, TP_, SL_, min_signals, strategies, dir), n_trials=100)
 
@@ -98,6 +98,6 @@ def optimize():
             file.write(f"Best Trial: {study.best_trial.number}\nBest Loss: {study.best_value}\nBest Parameters:\n{best_params_str}")
 
     except KeyboardInterrupt:
-        print("Optimization interrupted.")
+        #print("Optimization interrupted.")
         df_trials = study.trials_dataframe()
         df_trials.to_csv(os.path.join(dir, "strategy_optimize_trial.csv"), index=False)

@@ -5,10 +5,13 @@ import os
 
 def initialize_logging(log_dir: str) -> None:
     warnings.filterwarnings('ignore')
-    """Initializes logging settings."""
-    logging.basicConfig(filename=log_dir, level=logging.INFO,
-                        format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    logging.basicConfig(filename=os.path.join(log_dir, "working.log"), level=logging.INFO, format='%(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    os.makedirs(log_dir, exist_ok=True)
+
+    log_file_path = os.path.join(log_dir, "working.log")
+
+    logging.basicConfig(filename=log_file_path, level=logging.INFO,
+                        format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     logging.info("Logging Initialized")
 
 def load_best_parameters(filepath: str) -> dict:
@@ -17,7 +20,7 @@ def load_best_parameters(filepath: str) -> dict:
         best_params = pd.read_csv(filepath).set_index("number").sort_values("value", ascending=False).iloc[0].to_dict()
         return best_params
     except Exception as e:
-        print(f"Error reading CSV file: {e}")
+        #print(f"Error reading CSV file: {e}")
         return {}
     
 

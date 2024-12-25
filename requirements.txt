@@ -1,13 +1,15 @@
 numpy
+ta
 matplotlib
 pandas
 scipy
 statsmodels
 torch
 tensorboard
-psycopg2
 redis
 plotly
 ta
 tqdm
 optuna
+pg8000
+sqlalchemy

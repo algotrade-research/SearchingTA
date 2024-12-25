@@ -41,7 +41,7 @@ def testing():
         insample.data.to_csv(f"{dir}/insample.csv") 
         insample._history.to_csv(f"{dir}/insample_history.csv")
     except Exception as e:
-        print(f"Error: {e}")
+        #print(f"Error: {e}")
         exit()
 
     outsample = Backtesting(
@@ -54,7 +54,7 @@ def testing():
         outsample.data.to_csv(f"{dir}/outsample.csv")
         outsample._history.to_csv(f"{dir}/outsample_history.csv")
     except Exception as e:
-        print(f"Error: {e}")
+        #print(f"Error: {e}")
 
 
 

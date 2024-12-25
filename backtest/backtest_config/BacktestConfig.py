@@ -18,9 +18,9 @@ class BacktestConfig:
                  position_size: int=1, 
                  margin: float=0.25,
                  min_signals = 2,
-                 mode: 'one_way' | 'hedged'= 'one_way',
-                 side: 'long' | 'short' = None,
-                 time_out: int=30, 
+                 mode: ['one_way','hedged']= 'one_way',
+                 side: ['long', 'short'] = None,
+                 timeout: int=30, 
                  ) -> None:
         assert 1 <= position_size, f"Position size must be between 0 and 1. {position_size}"
         assert 0.2 <= margin <= 1, f"Margin must be between 0 and 1. {margin}"
@@ -39,7 +39,7 @@ class BacktestConfig:
         self.mode = mode
         self.side = side
         self.min_signals = min_signals
-        self.time_out = time_out
+        self.timeout = timeout
     
     def __str__(self):
         return f"""

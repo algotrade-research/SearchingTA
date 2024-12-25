@@ -19,8 +19,8 @@ class Searching:
                  data: pd.DataFrame = None,
                  SL: Tuple[float, float] = (1, 10),
                  TP: Tuple[float, float] = (1, 10),
-                 side: 'long' | 'short' = None,
-                 mode: 'one_way' | 'hedged' = 'one_way'
+                 side: ['long', 'short'] = None,
+                 mode: ['one_way', 'hedged'] = 'one_way'
                  ):
         assert data is not None, "Data must be provided"
         assert len(data) > 0, "Data must not be empty"
@@ -43,25 +43,23 @@ class Searching:
 
     def configure(self,
                   strategies: List[Callable],
-                  initial_balance: float=10000.0, 
                   cost: float=0.07,
                   slippage: float = 0, 
                   TP: float=None, 
                   SL: float=None, 
-                  max_pos: int=5, 
                   position_size: int=1, 
                   margin: float=0.25,
                   min_signals = 2,
-                  mode: 'one_way' | 'hedged'= 'one_way',
-                  side: 'long' | 'short' = None):
+                  mode: ['one_way', 'hedged']= 'one_way',
+                  side: ['long', 'short'] = None):
         """
             Configure the backtesting environment
         """
+
         self.bt_config = BacktestConfig(
             cost=cost,
-            initial_balance=initial_balance,
             slippage=slippage,
-            max_pos=max_pos,
+            max_pos=10e9,
             TP=TP,
             SL=SL,
             position_size=position_size,
@@ -69,7 +67,6 @@ class Searching:
             side=side,
             min_signals=min_signals,
             initial_balance=10e19,
-            margin=0.25,
             mode=mode
         )
         
@@ -100,7 +97,7 @@ class Searching:
             The find the optimal strategy, we by maximizing the objective function
         """
         break_even_prob = (SL + 2*self.bt_config.cost) / (SL + TP)
-        expected_pnl = TP * 
+        expected_pnl = TP * break_even_prob
         
         pnl = history['pnl']
         mean_pnl = pnl.mean()
@@ -130,8 +127,11 @@ class Searching:
         assert self.bt is not None, "Backtesting environment must be configured"
 
         try:
-            self.bt.run()
+            self.bt.run_backtest()
             history = self.bt.portfolio.history
+
+            if len(history) == 0:
+                return 0
 
             nav = self.bt.data['balance']
             equity = self.bt.data['balance']
@@ -168,9 +168,6 @@ class Searching:
 
             study.optimize(self.seaching_objective, n_trials=self.number_of_trials, n_jobs=2)
 
-            df_trials = study.trials_dataframe()
-            df_trials.to_csv("optuna_trials.csv", index=False)
-
             best_params = study.best_params
             best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
 
@@ -182,9 +179,9 @@ class Searching:
             
         except Exception as e:
             logging.error(f"Error: {e}")
-            best_params = study.best_params
-            best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
+            # best_params = study.best_params
+            # best_params_str = "\n".join(f"{key}: {value}" for key, value in best_params.items())
 
-            with open(os.path.join(dir, "best_params.log"), "w") as file:
-                file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
-                file.write("Best Parameters:\n" + best_params_str)
+            # with open(os.path.join(dir, "best_params.log"), "w") as file:
+            #     file.write("Best Sharpe Ratio: " + str(study.best_value) + "\n")
+            #     file.write("Best Parameters:\n" + best_params_str)
