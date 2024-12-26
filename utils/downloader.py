@@ -65,6 +65,7 @@ class Downloader:
             result.set_index("datetime", inplace=True)
             result.index = pd.to_datetime(result.index)
             result = result.astype(float)
+            result.sort_index(inplace=True)
             # #print(result)
 
             # Convert the DatetimeIndex to just the time component

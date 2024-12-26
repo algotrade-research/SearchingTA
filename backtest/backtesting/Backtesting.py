@@ -4,6 +4,7 @@ from utils import processor
 from abc import ABC, abstractmethod
 from tqdm import tqdm
 from typing import List, Callable
+import logging
 
 from ..portfolio import Portfolio
 from ..backtest_config import BacktestConfig
@@ -14,19 +15,23 @@ class Backtesting:
     def __init__(self,      
                  strategy: List[Callable], 
                  data: pd.DataFrame, 
-                 config: BacktestConfig = None, 
-                 interval=1):
+                 config: BacktestConfig = None
+                 ):
         
         assert config is not None, "Config must be provided"
         self.strategy = strategy
         self.data = data
         self.config = config
+
         self.order_book = pd.DataFrame(columns=["date", "price", "signal", "timeout"])
-        self.portfolio = Portfolio(config.initial_balance)
-        self.process_data = self._process_data(interval)
+        self.portfolio = Portfolio(config.initial_balance, config)
+        
+        self.process_data = self._process_data(config.interval)
         self.data["equity"] = config.initial_balance
         self.data["balance"] = config.initial_balance
+        
         self.prevdate = 0
+        self.position_size = 1
 
     def _process_data(self, min):
         """Preprocess and resample data."""
@@ -35,8 +40,10 @@ class Backtesting:
             "price": "ohlc", 
             "volume": "sum"
         }).dropna()
+
         ohlcv.columns = ohlcv.columns.droplevel(0)
-        # #print(ohlcv)
+        # print(ohlcv.head())
+        logging.info(f"Resampled data to {min} minutes interval")
         ohlcv = processor(ohlcv)
         ohlcv = ohlcv.shift(1).dropna().astype(float)
 
@@ -73,8 +80,8 @@ class Backtesting:
                     "date": date,
                     "price": curr_price,
                     "signal": "buy" if row["signal"] == 1 else "sell",
-                    "position_size": self.config.position_size,
-                    "position": curr_price * self.config.position_size,
+                    "position_size": self.position_size,
+                    "position": curr_price * self.config.margin * self.position_size,
                     "TP": curr_price + self.config.TP if row["signal"] == 1 else curr_price - self.config.TP,
                     "SL": curr_price - self.config.SL if row["signal"] == 1 else curr_price + self.config.SL,
                     "close_price": np.nan,
@@ -129,9 +136,13 @@ class Backtesting:
                 curr_price = self.data["price"].iloc[i]
                 bid_price = self.data["bid_price"].iloc[i+1] if (self.data["bid_price"].iloc[i+1] is not np.nan) else self.data["bid_price"].iloc[i]
                 ask_price = self.data["ask_price"].iloc[i+1] if (self.data["ask_price"].iloc[i+1] is not np.nan) else self.data["ask_price"].iloc[i]
+
+                if self.config.position_size != 1:
+                    self.position_size = self.portfolio.position_sizing(curr_price)
+
                 if time >= pd.to_datetime('09:15').time() and time <= pd.to_datetime('14:30').time():
-                    self.portfolio.check_position(curr_price, bid_price, ask_price, datetime, self.config)
-                    buying_power = self.portfolio.buying_power(curr_price, self.config)
+                    self.portfolio.check_position(curr_price, bid_price, ask_price, datetime)
+                    buying_power = self.portfolio.buying_power(curr_price)
                                         
                     self.check_orders(curr_price=curr_price, bid_price=bid_price, ask_price=ask_price,date=datetime)
 
@@ -144,15 +155,19 @@ class Backtesting:
                         self.place_order(curr_price, signal, datetime)
 
                     if not self.portfolio.holdings.empty:
-                        self.portfolio.force_liquidate(curr_price, bid_price, ask_price, self.config, datetime)
+                        self.portfolio.force_liquidate(curr_price, bid_price, ask_price, datetime)
                         
                 # if time is greater than 2:29 PM, close all positions
                 if time >= pd.to_datetime('14:29').time():
-                    pnl = self.portfolio._close_all(curr_price, bid_price, ask_price, datetime, self.config)
-                
+                    pnl = self.portfolio._close_all(curr_price, bid_price, ask_price, datetime)
+
                 self.data.loc[datetime, "balance"] = self.portfolio.balance
-                if self.config.initial_balance != self.portfolio.balance:
-                    print(self.portfolio.balance)
+                # if self.config.initial_balance != self.portfolio.balance:
+                #     print(self.portfolio.balance)
         
                 self.data.loc[datetime, "equity"] = self.portfolio.balance + self.portfolio._unrealized_pnl(curr_price)
+
+                if self.portfolio.holdings.empty and self.portfolio.balance < (curr_price * self.config.margin):
+                    logging.info("Out of buying power")
+                    return
                 pbar.update(1)

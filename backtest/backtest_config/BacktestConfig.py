@@ -10,19 +10,20 @@ class BacktestConfig:
     """
     def __init__(self, 
                  initial_balance: float=10000.0, 
-                 cost: float=0.07,
+                 cost: float=0.25,
                  slippage: float = 0, 
                  TP: float=None, 
                  SL: float=None, 
                  max_pos: int=5, 
-                 position_size: int=1, 
+                 position_size: int=0.1, 
                  margin: float=0.25,
                  min_signals = 2,
+                 interval: int=1,
                  mode: ['one_way','hedged']= 'one_way',
                  side: ['long', 'short'] = None,
                  timeout: int=30, 
                  ) -> None:
-        assert 1 <= position_size, f"Position size must be between 0 and 1. {position_size}"
+        assert 0 < position_size <= 1, f"Position size must be between 0 and 1. {position_size}"
         assert 0.2 <= margin <= 1, f"Margin must be between 0 and 1. {margin}"
         assert TP is not None and SL is not None, "TP and SL must be provided."
         assert (mode=='one_way' and side is not None) or mode=='hedged', "Side must be provided for One"
@@ -40,6 +41,7 @@ class BacktestConfig:
         self.side = side
         self.min_signals = min_signals
         self.timeout = timeout
+        self.interval = interval
     
     def __str__(self):
         return f"""

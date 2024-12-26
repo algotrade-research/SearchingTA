@@ -1,0 +1,2 @@
+# Parameters 188.0565227855467
+params = {'TP': 4.5, 'SL': 6.0, 'position_size': 0.35000000000000003, 'max_pos': 4, 'interval': 28, 'side': 'long', 'mode': 'one_way', 'strategies': ['RSI', 'MACD', 'ATR', 'MomentumBBL']}
