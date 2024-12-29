@@ -1,2 +1,0 @@
-# Parameters -4.336748541635203
-params = {'TP': 5.1000000000000005, 'SL': 1.0, 'position_size': 0.05, 'max_pos': 6, 'interval': 28, 'side': 'long', 'mode': 'one_way', 'strategies': ['VWAP', 'PPO', 'Volume_MA']}

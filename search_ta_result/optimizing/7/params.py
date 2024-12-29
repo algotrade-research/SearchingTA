@@ -1,2 +1,0 @@
-# Parameters 22.935119850383035
-params = {'TP': 4.1000000000000005, 'SL': 6.0, 'position_size': 0.15000000000000002, 'max_pos': 7, 'interval': 28, 'side': 'long', 'mode': 'one_way', 'strategies': ['MACD', 'PPO', 'ADX', 'Volume_MA']}
