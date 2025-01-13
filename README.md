@@ -177,12 +177,12 @@ The whole process is optimized by Optuna.
 The Objective function here is:
 
 $$
-\begin{align*}\text{break_even_prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\\text{expected_pnl} &= \text{TP} \cdot \text{break_even_prob} \\\text{mean_pnl} &\text{: the mean profit and loss of the strategy} \\\text{winrate} &\text{: the percentage of winning trades}
+\begin{align*}\text{break even prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\\text{expected pnl} &= \text{TP} \cdot \text{break even prob} \\\text{mean pnl} &\text{: the mean profit and loss of the strategy} \\\text{winrate} &\text{: the percentage of winning trades}
 \end{align*}
 $$
 
 $$
-\text{objective} = \left( \frac{\text{winrate}}{\text{break\_even\_prob}} - 1 \right) + \left( \frac{\text{mean\_pnl}}{\text{expected\_pnl}} - 1 \right)
+\text{objective} = \left( \frac{\text{winrate}}{\text{break even prob}} - 1 \right) + \left( \frac{\text{mean pnl}}{\text{expected pnl}} - 1 \right)
 $$
 
 If less than 50 trades return $-\inf$
