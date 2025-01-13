@@ -177,7 +177,7 @@ The whole process is optimized by Optuna.
 The Objective function here is:
 
 $$
-\begin{align*}\text{break\_even\_prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\\text{expected\_pnl} &= \text{TP} \cdot \text{break\_even\_prob} \\\text{mean\_pnl} &\text{: the mean profit and loss of the strategy} \\\text{winrate} &\text{: the percentage of winning trades}
+\begin{align*}\text{break_even_prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\\text{expected_pnl} &= \text{TP} \cdot \text{break_even_prob} \\\text{mean_pnl} &\text{: the mean profit and loss of the strategy} \\\text{winrate} &\text{: the percentage of winning trades}
 \end{align*}
 $$
 
