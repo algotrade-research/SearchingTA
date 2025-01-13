@@ -5,9 +5,10 @@ class Portfolio:
     """
         Portfolio class to manage the positions and balance of the trading account.
     """
-    def __init__(self, initial_balance: float, config: BacktestConfig):
+    def __init__(self, initial_balance: float, config: BacktestConfig, search: bool = False):
         self.balance = initial_balance
         self.config = config
+        self.search = search
         self.holdings = pd.DataFrame(columns=[
             "date", "price", "signal", "position_size", "position", 
             "TP", "SL", "close_price", "close_time", "pnl"
@@ -56,10 +57,13 @@ class Portfolio:
         pnl = (bid_price - row["price"]) if row["signal"] == "buy" else (row["price"] - ask_price)
         # print(row["position_size"])
 
-        pnl -= self.config.slippage * 2
+        pnl -= self.config.slippage
         pnl -= self.config.cost * 2
-
-        pnl *= row["position_size"]
+        
+        if self.search:
+            return pnl 
+        else:
+            pnl *= row["position_size"]
         return pnl
 
     def force_liquidate(self, curr_price, bid_price, ask_price, date):
@@ -127,7 +131,7 @@ class Portfolio:
     
     def position_sizing(self, curr_price):
         """Calculate the position size based on the current balance."""
-        new_size = int((self.balance * self.config.position_size) / curr_price)
+        new_size = int((self.balance * self.config.position_size) / (curr_price * self.config.margin))
         
         if new_size < 1 and self.balance > (curr_price * self.config.margin):
             return 1

@@ -1,2 +1,0 @@
-# Parameters 0.7151515151515244
-params = {'TP': 5.5, 'SL': 3.0, 'strategies': ['MACD', 'VWAP', 'MA5', 'MA20', 'PPO', 'TSI', 'ATR', 'ADX', 'CCI', 'Momentum', 'Volume_MA', 'MomentumBBL', 'Keltner', 'W_R', 'PSAR', 'Donchian', 'UO', 'Vortex'], 'interval': 59}

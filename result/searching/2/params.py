@@ -1,2 +1,0 @@
-# Parameters 0.7578637770897777
-params = {'TP': 9.5, 'SL': 3.5, 'strategies': ['RSI', 'BBL', 'MACD', 'MA20', 'PPO', 'ROC', 'TSI', 'CCI', 'Volume_MA', 'MomentumBBL', 'Keltner', 'SO', 'W_R', 'Donchian', 'FI'], 'interval': 32}

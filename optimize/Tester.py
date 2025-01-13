@@ -18,27 +18,23 @@ class Tester:
                  path: str,
                  dir: str = 'testing',
                  data: pd.DataFrame = None,
-                 side: ['long', 'short'] = None,
-                 mode: ['one_way', 'hedged'] = 'one_way',
+                 cost: float = 0.25
                  ):
         
         assert data is not None, "Data must be provided"
         assert len(data) > 0, "Data must not be empty"
         assert len(data.columns) > 0, "Data must have columns"
-        assert (mode == 'one_way' and side is not None) or mode == 'hedged', "Side must be provided for One way"
-        assert side in ['long', 'short', None], "Side must be either 'long', 'short' or None"
-
         self._dir: str = dir
-
-        self.side = side
-        self.mode = mode
 
         # initialize directory
         os.makedirs(dir, exist_ok=True)
         initialize_logging(dir)
 
         self.data: pd.DataFrame = data
-        self.bt = None
+        self.bt: Backtesting = None
+        
+        self.cost = cost
+        
         self.trial_num = trial_num
         self._read_params(trial_num, path)
 
@@ -50,12 +46,18 @@ class Tester:
             '''
             exec_globals = {}
             exec(file.read(), exec_globals)
-            params = exec_globals.get("params", None)  # Safely retrieve 'params' from the executed context
+            params = exec_globals.get("params", None)  # Safely retrieve 'params' from the executed 
+            
+        print(params)
+        strrategy_func = []
+        for strategy_name, strategy_function in strategy_options:
+            if strategy_name in params['strategies']:
+                strrategy_func.append(strategy_function)
+        params['strategies'] = strrategy_func
         self.params = params
     
     def _configure(self,
                   strategies: List[Callable],
-                  cost: float=0.25,
                   slippage: float = 0, 
                   TP: float=None, 
                   SL: float=None,
@@ -76,7 +78,7 @@ class Tester:
 
         self.bt_config = BacktestConfig(
             initial_balance=balance,
-            cost=cost,
+            cost=self.cost,
             slippage=slippage,
             max_pos=max_pos,
             TP=TP,
@@ -123,24 +125,24 @@ class Tester:
         pos_size = self.params['position_size'] 
         max_pos = self.params['max_pos']
         min_signals = self.params['min_signals'] 
-        interval = self.params['interval']  
-        
-        selected_strategies = []
-        for strategy_name, strategy_function in strategy_options:
-            if strategy_name in self.params['strategies']:
-                selected_strategies.append(strategy_function)
+        interval = self.params['interval']
+        side = self.params['side']
+        strategy = self.params['strategies']
 
+    
         self._configure(
-            max_pos=max_pos,
+            max_pos=2,
             min_signals=min_signals,
             position_size=pos_size,
             TP=TP,
             SL=SL,
             interval=interval,
+            slippage=0.47,
+
             # Base Parameters
-            side=self.side,
-            mode=self.mode,
-            strategies=selected_strategies,
+            side=side,
+            mode='one_way',
+            strategies=strategy,
         )
 
         assert self.bt is not None, "Backtesting environment must be _configured"
@@ -148,19 +150,22 @@ class Tester:
         try:
             self.bt.run_backtest(name=name)
             history = self.bt.portfolio.history
-
-            if len(history) == 0:
-                return 0
+            path = '/' + str(self.trial_num) + '/'
+            # print(path)
+            # self.bt.data.to_csv("test_data.csv")
+            # if len(history) == 0:
+            #     return 0
 
             balance = self.bt.data['balance']
             equity = self.bt.data['equity']
             
-            os.makedirs(os.path.join(self._dir, self.trial_num), exist_ok=True)
+            os.makedirs(os.path.join(self._dir, str(self.trial_num)), exist_ok=True)
             
             # save the history, nav and equity
-            history.to_csv(os.path.join(self._dir, str(self.trial_num), "history.csv"))
+            history.to_csv(os.path.join(self._dir + '/' + str(self.trial_num), "history.csv"))
             balance.to_csv(os.path.join(self._dir + '/' + str(self.trial_num), "balance.csv"))
             equity.to_csv(os.path.join(self._dir + '/' + str(self.trial_num), "equity.csv"))
+            print(balance)
         
         except Exception as e:
             logging.error(f"Error: {e}")

@@ -15,7 +15,8 @@ class Backtesting:
     def __init__(self,      
                  strategy: List[Callable], 
                  data: pd.DataFrame, 
-                 config: BacktestConfig = None
+                 config: BacktestConfig = None,
+                 search: bool = False
                  ):
         
         assert config is not None, "Config must be provided"
@@ -24,7 +25,7 @@ class Backtesting:
         self.config = config
 
         self.order_book = pd.DataFrame(columns=["date", "price", "signal", "timeout"])
-        self.portfolio = Portfolio(config.initial_balance, config)
+        self.portfolio = Portfolio(config.initial_balance, config, search=search)
         
         self.process_data = self._process_data(config.interval)
         self.data["equity"] = config.initial_balance
@@ -126,48 +127,62 @@ class Backtesting:
             Buy at Ask price, exit at Bid price
             Sell at Bid price, Exit at Ask price
         """
-        with tqdm(total=len(self.data), desc=f"{name}-Progress") as pbar:
-            for i in range(len(self.data) - 20):
-                datetime = self.data.index[i]
-                
-                # check if in continuos trading hours
-                #print(self.data)
-                time = datetime.time()
-                curr_price = self.data["price"].iloc[i]
-                bid_price = self.data["bid_price"].iloc[i+1] if (self.data["bid_price"].iloc[i+1] is not np.nan) else self.data["bid_price"].iloc[i]
-                ask_price = self.data["ask_price"].iloc[i+1] if (self.data["ask_price"].iloc[i+1] is not np.nan) else self.data["ask_price"].iloc[i]
+        # Extract data as NumPy arrays to speed up access
+        data_len = len(self.data)
+        prices = self.data["price"].values
+        bid_prices = self.data["bid_price"].fillna(method="bfill").values
+        ask_prices = self.data["ask_price"].fillna(method="bfill").values
+        datetimes = self.data.index
+        times = datetimes.time  # Extract time separately
+
+        balance_updates = []
+        equity_updates = []
+
+        with tqdm(total=data_len - 20, desc=f"{name}-Progress") as pbar:
+            for i in range(data_len - 20):
+                datetime = datetimes[i]
+                time = times[i]
+                curr_price = prices[i]
+                bid_price = bid_prices[i + 1] if i + 1 < data_len else bid_prices[i]
+                ask_price = ask_prices[i + 1] if i + 1 < data_len else ask_prices[i]
 
                 if self.config.position_size != 1:
                     self.position_size = self.portfolio.position_sizing(curr_price)
 
-                if time >= pd.to_datetime('09:15').time() and time <= pd.to_datetime('14:30').time():
+                if pd.to_datetime('09:15').time() <= time <= pd.to_datetime('14:30').time():
                     self.portfolio.check_position(curr_price, bid_price, ask_price, datetime)
                     buying_power = self.portfolio.buying_power(curr_price)
-                                        
-                    self.check_orders(curr_price=curr_price, bid_price=bid_price, ask_price=ask_price,date=datetime)
+                    
+                    self.check_orders(curr_price=curr_price, bid_price=bid_price, ask_price=ask_price, date=datetime)
 
-                    if buying_power >= 1:
-                        signal = self.generate_signals(datetime) if len(self.portfolio.holdings) < self.config.max_pos else 0
+                    if buying_power >= 1 and len(self.portfolio.holdings) < self.config.max_pos:
+                        signal = self.generate_signals(datetime)
                     else:
                         signal = 0
-                        
+                    
                     if signal != 0:
                         self.place_order(curr_price, signal, datetime)
 
                     if not self.portfolio.holdings.empty:
                         self.portfolio.force_liquidate(curr_price, bid_price, ask_price, datetime)
-                        
-                # if time is greater than 2:29 PM, close all positions
-                if time >= pd.to_datetime('14:29').time():
-                    pnl = self.portfolio._close_all(curr_price, bid_price, ask_price, datetime)
 
-                self.data.loc[datetime, "balance"] = self.portfolio.balance
-                # if self.config.initial_balance != self.portfolio.balance:
-                #     print(self.portfolio.balance)
-        
-                self.data.loc[datetime, "equity"] = self.portfolio.balance + self.portfolio._unrealized_pnl(curr_price)
+                # Close all positions after 2:29 PM
+                if time >= pd.to_datetime('14:29').time():
+                    self.portfolio._close_all(curr_price, bid_price, ask_price, datetime)
+
+                # Store balance and equity updates for bulk assignment
+                balance_updates.append((datetime, self.portfolio.balance))
+                equity_updates.append((datetime, self.portfolio.balance + self.portfolio._unrealized_pnl(curr_price)))
 
                 if self.portfolio.holdings.empty and self.portfolio.balance < (curr_price * self.config.margin):
                     logging.info("Out of buying power")
                     return
+
                 pbar.update(1)
+
+        # Apply batch updates to the DataFrame **after** the loop
+        for x in balance_updates:
+            self.data.loc[x[0]:, "balance"] = x[1]
+        
+        for x in equity_updates:
+            self.data.loc[x[0]:, "equity"] = x[1]

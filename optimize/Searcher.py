@@ -8,6 +8,7 @@ from utils import *
 from strategy import *
 from backtest import *
 import optuna
+import random
 
 class Searching:
     """
@@ -19,6 +20,8 @@ class Searching:
                  data: pd.DataFrame = None,
                  SL: Tuple[float, float] = (1, 10),
                  TP: Tuple[float, float] = (1, 10),
+                 cost: float = 0.25,
+                 slippage: float = 0.47,
                  side: ['long', 'short'] = None,
                  mode: ['one_way', 'hedged'] = 'one_way',
                  n_jobs: int = 2
@@ -44,10 +47,14 @@ class Searching:
         self.number_of_trials: int = number_of_trials
         self.data: pd.DataFrame = data
         self.bt = None
+        self.cost = cost
+        self.slippage = slippage
+
+        np.random.seed(42)
+        random.seed(42)
 
     def _configure(self,
                   strategies: List[Callable],
-                  cost: float=0.25,
                   slippage: float = 0, 
                   TP: float=None, 
                   SL: float=None, 
@@ -62,7 +69,7 @@ class Searching:
         """
 
         self.bt_config = BacktestConfig(
-            cost=cost,
+            cost=self.cost,
             slippage=slippage,
             max_pos=10e9,
             TP=TP,
@@ -79,7 +86,8 @@ class Searching:
         self.bt = Backtesting(
             strategy=strategies,
             data=self.data,
-            config= self.bt_config
+            config= self.bt_config,
+            search=True
         )
         return f"""
             Strategies: {[strategy.__name__ for strategy in strategies]}
@@ -102,14 +110,14 @@ class Searching:
                 
             The find the optimal strategy, we by maximizing the objective function
         """
-        break_even_prob = (SL + 2*self.bt_config.cost) / (SL + TP)
+        break_even_prob = (SL + 2 * self.bt_config.cost) / (SL + TP)
         expected_pnl = TP * break_even_prob
         
         pnl = history['pnl']
         mean_pnl = pnl.mean()
-        winrate = (pnl > 0).astype(int).mean() * 100
+        winrate = (pnl > 0).astype(float).mean()
 
-        loss = (winrate / (break_even_prob * 100)) + (mean_pnl / expected_pnl)
+        loss = (winrate / break_even_prob - 1) + (mean_pnl / expected_pnl - 1)
 
         return loss
 
@@ -127,6 +135,7 @@ class Searching:
             strategies=selected_strategies,
             TP=TP,
             SL=SL,
+            slippage=self.slippage,
             side=self.side,
             mode=self.mode,
             interval=interval
@@ -138,7 +147,7 @@ class Searching:
             self.bt.run_backtest(name=trial.number)
             history = self.bt.portfolio.history
 
-            if len(history) == 0:
+            if len(history) <= 50:
                 return float('-inf')
 
             balance = self.bt.data['balance']
@@ -173,7 +182,11 @@ class Searching:
     def run(self, name: str='') -> optuna.study.Study:
 
         try:
-            study = optuna.create_study(direction="maximize",
+            np.random.seed(42)
+            random.seed(42)
+            sampler = optuna.samplers.TPESampler(seed=42)
+            study = optuna.create_study(sampler=sampler,
+                                        direction='maximize',
                                         study_name=f"searching_{name}",
                                         storage="sqlite:///searching.db", 
                                         load_if_exists=True)    

@@ -1,145 +1,509 @@
-# Scalping Strategy Search
+# SearchingTA
 
-# Project Overview
+# **Abstract**
 
-This project focuses on searching various trading strategies using historical stock market data and the Optuna hyperparameter optimization framework. The optimization process selects the best trading strategy based on several technical indicators and parameters like Take Profit (TP) and Stop Loss (SL). The final results include optimized strategy configurations, along with key metrics such as mean PnL (Profit and Loss), win rate, and loss.
+---
 
-# Workflow Overview
+This project aims to search for profitable signals in the derivative market using a combination of trading rules. By selecting a combination of trading rules to generate signals, testing those signals, and then forming a complete trading strategy, including risk management and position sizing, we can optimize trading performance.
 
-1. Searching for Combinations: Identify optimal combinations of technical indicators, TP, and SL levels.
-2. Strategy Optimization:
-   - Refine the strategy by adding/removing technical indicators.
-   - Tune parameters like SL, TP, and the optimal number of positions.
-3. Testing:
-   - Test on the in-sample dataset (training data).
-   - Test on the out-of-sample dataset (testing data).
-4. Paper Trading: Simulate trades based on the optimized strategy to verify performance.
+# Introduction
 
-# Data Overview
+---
 
-Data Description: The input data consists of historical stock market price data, including tickdata and volume.
+The process of finding profitable trading strategies involves three steps:
 
-Data Source: The historical data is downloaded from a data provider through the Downloader class.
-Date Range: The data used in this project spans from January 1, 2022, to August 12, 2024.
+1. Searching for a combination of trading rules and validating their signals.
+2. Fine-tuning and forming a complete trading strategy.
+3. Testing and validating on both in-sample and out-of-sample data.
 
-## Input Data:
+**Feature**
 
-The input data is retrieved using the Downloader.get_historical_data function in the main script. The script automatically downloads data based on the specified date range (start_date="2022-01-01", end_date="2024-08-12").
+- [ ] Generate Mock Data for unit testing
+- [ ] Validate Test Case: Financial, Technical Signal and Backtesting
+- [x] Optimize hyperparameters
+- [x] Evaluate backtesting and optimization
+- [ ] Paper trade
 
-```{python}
-tickdata = Downloader.get_historical_data(ticker='VN30F1M', start_date="2022-01-01", end_date="2024-08-12")
+## **Installation**
+
+- Requirement: pip
+- Create and source new virtual environment in the current working directory with command
+
+```
+python3 -m venv venv
+source venv/bin/activate
+
 ```
 
-## Output Data:
+- Install the dependencies by:
 
-Search Results: For each trial, backtesting results are saved in the searching/ directory, with detailed logs, parameter configurations, and historical performance metrics in CSV format.
-
-Best Results: The best performing parameters and loss are saved in a file named best_params.log.
-
-# Method Overview
-
-The main components of this project include:
-
-Historical Data Downloading: The project retrieves stock market data using the Downloader class, which provides the raw data needed for backtesting.
-
-Strategy Searching: Using Optuna's hyperparameter optimization framework, we run multiple trials to search for potential combinations of technical indicators and trading parameters.
-
-Strategy Optimizing: Using Optuna's hyperparameter optimization framework, we run multiple trials on the potential conbinations to optimize trading parameters.
-
-Backtesting: Each trial performs backtesting on historical data to compute the performance of the selected strategies.
-Logging and Saving Results: Logs are stored for each trial run, and the best-performing strategies are saved for future use.
-
-# Optimization Process
-
-The optimization is performed in two stages:
-
-Stage 1: Initial Search for Strategies
-In this stage, the code searches for the best combination of technical indicators (e.g., RSI, MACD, Bollinger Bands) along with optimal TP and SL values. The parameters are defined as follows:
-
-- TP (Take Profit): Suggests an optimal TP level.
-- SL (Stop Loss): Optimizes the SL level to minimize risk.
-- Technical Indicators: The project includes 24 different technical indicators for strategy generation.
-
-Stage 2: Fine-tuning and Testing
-In this stage, further optimization is carried out:
-
-- Adjust SL and TP: Fine-tune previously optimized SL and TP values.
-- Maximize Position Holding: Adjust the maximum number of open positions.
-- Min Signals: The minimum number of signals that must be met before entering a trade.
-- The final result is saved and analyzed using backtesting over both in-sample and out-of-sample datasets.
-
-# Running the Project
-
-1. Environment Setup
-   The project uses Python >= 3.9.
-
-To install dependencies:
-
-```{bash}
+```
 pip install -r requirements.txt
 ```
 
-2. Running the Optimization
-   You can modify the search space for the parameters folder strategy, then add the name as well as the strategy function in the strategy list.
+## Process of this project:
 
-The input data for each strategy in default is OHLCV with additional Technical Indicators, you can allso add more tech nocal indicators in the ./utils/processor.py
+### 1. Searching for signal
 
-Strategy output:
+In this step the main goal is to validate all signals that generated by the model, which take account only Win Rate and mean profit and loss for best performance.
 
-- 1 for Long signal
-- -1 for Short signal
-- 0 for no action
+In this step the config for backtest is:
 
-Strategy example:
+- Balance: unlimited
+- Maximum position: Unlimited
+- Position sizing: 1 contract per position
+- Limit Order for all signals
+- Order Price: Close Price of previous candle
+- Cost:
+  - Transaction fee apply for 1 side: 0.25 points
+  - Slippage apply for 1 side: 0.47 (only apply for TP and SL)
 
-```{python}
-def Strategy_1(data):
-    close_price = data['close']
-    max_in_20 = close.price.rolling(20).max()
-    min_in_20 = close.price.rolling(20).min()
+### 2. Optimizing
 
-    if max_in_20[-1] > max_in_20[-2]:
-        return 1
-    elif min_in_20[-1] < min_in_20[-2]:
-        return -1
+In this step the main goal is to validate all signals that generated by the model, which take account only Win Rate and mean profit and loss for best performance
 
-    return 0
+In this step the config for backtest is:
+
+- Balance: unlimited
+- Maximum position: Unlimited
+- Position sizing: 1 contract per position
+- Limit Order for all signals
+- Order Price: Close Price of previous candle
+- Cost:
+  - Transaction fee apply for 1 side: 0.25 points
+  - Slippage apply for 1 side: 0.47 (only apply for TP and SL)
+
+# **Related Work (Background)**
+
+---
+
+Traders in the derivatives market often rely on trading signals derived from technical analysis. These signals are generated based on indicator behavior (e.g., selling when RSI > 70 and then falls below 70). This project aims to develop a trading strategy by selecting and combining multiple Trading rules based on Techincal Indicators.
+
+# **Data**
+
+---
+
+The data using in this project is tick data of VN30F1M from 2021-06-01 to 2024-11-01, and bid/ask data to check matching of orders.
+
+To using the technical analysis, data is resample to interval range of 1 min to 60 min.
+
+## Data Collection
+
+From class Downloader, the data will be automatically download the data from algotrade database, by specifying start-date, end-date and the ticker, the data will include datetime, tick price, bid price, ask price.
+
+```python
+downloader = Downloader()
+
+data_config = {
+	'start_date': '2019-01-01',
+	'end_date': '2024-11-01',
+	'ticker': 'VN30F1M'
+}
+data = downloader.get_historical_data(**data_config)
+
+ratio = 0.7
+len_data = len(data)
+
+insample = data.iloc[:int(ratio * len_data)]
+outsample = data.iloc[int(ratio * len_data):]
+
+search_data = insample.iloc[:int(0.3 * len(insample))]
+```
+
+Data:
+
+```python
+>>>                         price  bid_price  ask_price  volume
+datetime
+2021-06-01 09:00:33.039040  1483.8     1483.8     1484.0  1091.0
+2021-06-01 09:02:15.648543  1483.0     1483.1     1483.7  2427.0
+2021-06-01 09:02:52.934966  1483.1     1483.0     1483.1  2885.0
+2021-06-01 09:03:03.053928  1483.3     1483.3     1483.6  3052.0
+2021-06-01 09:03:10.533157  1483.5     1483.5     1483.7  3059.0
+```
+
+## Data Processing
+
+The Data is processed resample to OHLC data and adding Technical Indicators through processor function in `./utils` folder.
+
+The Data Processing is automatically done by Backtesting class, by passing the tick data DataFrame
+
+## Train Test Split
+
+For 3 process to find an optimal strategies, the data is splitted to 3 part:
+
+- In-Sample Data: 70% of the data
+- Out-Sample Data: 30% of the data
+- Search For Signal: 30% of In Sample data, 2021-06-01 to 2021-11-15
+
+## Data for Searching Signal
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot.png)
+
+## In Sample Data
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%201.png)
+
+## Out Sample Data
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%202.png)
+
+# **Implementation**
+
+---
+
+To run and get the result:
+
+- Long model:
+
+All the Result of Searching and Optimizing with Out Sample Testing will stored in `./result` folder.
+
+```python
+python3 -m long
+```
+
+- Short model
+
+All the result stored in `./result_short`
+
+To get the metrics, run all in `visualize.ipynb`
+
+To get different result for long and short change `name` variable to`‘_short’` instead of `‘’`
+
+## Searching for signal
+
+The whole process is optimized by Optuna.
+
+The Objective function here is:
+
+$$
+\begin{align*}\text{break\_even\_prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\\text{expected\_pnl} &= \text{TP} \cdot \text{break\_even\_prob} \\\text{mean\_pnl} &\text{: the mean profit and loss of the strategy} \\\text{winrate} &\text{: the percentage of winning trades}
+\end{align*}
+$$
+
+$$
+\text{objective} = \left( \frac{\text{winrate}}{\text{break\_even\_prob}} - 1 \right) + \left( \frac{\text{mean\_pnl}}{\text{expected\_pnl}} - 1 \right)
+$$
+
+If less than 50 trades return $-\inf$
+
+The subtraction of 1 is used to adjust the values relative to a baseline (e.g., a win rate at the break-even probability and the mean PnL against the expected PnL).
+
+- We define a trading rule within `$./strategy/strategy.py$`, with -1 for sell signal and 1 for long signal, 0 for do nothing.
+
+```python
+def RSI(df: pd.DataFrame):
+	RSI_curr, RSI_prev = df['rsi'].iloc[-1], df['rsi'].iloc[-2]
+
+	if RSI_prev > 70 and RSI_curr <= 70:
+		return -1
+	elif RSI_prev < 30 and RSI_curr >= 30:
+		return 1
+
+	return 0
+```
+
+- Implement Searching rule for trading signal:
+
+```python
+config = {
+    'number_of_trials': num_trials, # number of trials
+    'side': 'long', # side of the models
+    'n_jobs': 2,
+    'cost': 0.25, # transaction fee for 1 side
+    'slippage': 0.47 # slippage for TP and SL
+    'TP': (1, 10), # range for Take Profit, 1 to 10 points
+    'SL': (1, 10) # range for Stop Loss, 1 to 10 points
+}
+
+search_dir = './result/searching'
+
+search = Searching(data=search_data, dir=search_dir, **config)
+search.run()
+```
+
+After run the data of the study will be save in `search.db`, and history trade equity and balance will be save in `./search_dir/trial` folder.
+
+### Long Model
+
+**_Best trial is 259:_**
+
+| Trials | Mean Returns (points) | Max_PnL (points) | Min_PnL (points) | Winrate (%) | Break Even Probaility (%) |
+| ------ | --------------------- | ---------------- | ---------------- | ----------- | ------------------------- |
+| 259    | 1.466508              | 5.79             | -4.37            | 34.9        | 29.4                      |
+
+- Optuna Trials:
+
+![newplot-2.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot-2.png)
+
+- params:
+  ```json
+  {
+    "TP": 7.0,
+    "SL": 1.5,
+    "strategies": [
+      "RSI",
+      "PPO",
+      "ADX",
+      "CCI",
+      "Momentum",
+      "Keltner",
+      "W_R",
+      "Donchian",
+      "FI",
+      "Vortex"
+    ],
+    "interval": 45
+  }
+  ```
+- PnL distribution:
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%203.png)
+
+### Short Model
+
+**_Best trial is 451:_**
+
+| Trials | Mean Returns (points) | Max_PnL (points) | Min_PnL (points) | Winrate (%) | Break Even Probaility (%) |
+| ------ | --------------------- | ---------------- | ---------------- | ----------- | ------------------------- |
+| 451    | 2.594286              | 15.23            | -4.37            | 46.428571   | 21.7                      |
+
+- Optuna Trials
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%204.png)
+
+- params:
+  ```json
+  {
+    "TP": 10.0,
+    "SL": 1.5,
+    "strategies": [
+      "RSI",
+      "PPO",
+      "ADX",
+      "CCI",
+      "Momentum",
+      "W_R",
+      "Donchian",
+      "FI",
+      "Vortex"
+    ],
+    "interval": 47
+  }
+  ```
+- PnL distribution:
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%205.png)
+
+## Optimizing
+
+This part is to find a complete strategy based on best set of signal rules.
+
+The Objective here is maximize:
+
+$$
+S = \frac{R_p}{\sigma_p} \\
+loss = (\frac{S}{2} - 1) + (\frac{\bar{R_p}}{15\%} - 1)
+$$
+
+Where:
+
+- $S$ = Sharpe Ratio
+- $R_p$ = Expected return of the portfolio
+- $\sigma_p$ = Standard deviation of the portfolio returns
+
+```python
+# Load best trial params from db
+study_name=f"optimizing",
+storage="sqlite:///searching.db",
+search_study = optuna.load_study(study_name=study_name, storage=storage)
+best_search_trial = search_study.best_trial.number
+
+config = {
+    'number_of_trials': num_trials, # number of trials
+    'side': 'long', # side of the models
+    'n_jobs': 2,
+    'cost': 0.25, # transaction fee for 1 side
+    'slippage': 0.47 # slippage for SL and TP
+}
+
+optimize_dir = './result/optimizing'
+optimizer = Optimizer(trial=best_search_trial, path=search_dir,
+											data=insample, dir=optimize_dir, **config)
+optimize_study = optimizer.run(name=str(best_search_trial))
+```
+
+### Long Model
+
+Best Trial: 318
+
+| trial | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
+| ----- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
+| 318   | 0.96   | -43,2      | 1.7     | 15,7    | 4,6                 | 46,9               |
+
+- Params:
+
+```python
+{
+	'TP': 12.8,
+	'SL': 3.5,
+	'position_size': 0.5,
+	'max_pos': 9,
+	'min_signals': 2,
+	'interval': 24,
+	'side': 'long',
+	'mode': 'one_way',
+	'strategies': ['RSI', 'PPO', 'ROC', 'ADX', 'OBV', 'Donchian']
+}
 
 ```
 
-Step 1: Running the searching.py file to search for strategies.
+- Optuna Trials:
 
-```{bash}
-python3 seaching.py
+![newplot-2.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot-2%201.png)
+
+- **Equity:**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%206.png)
+
+- **Returns Distibutions:**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%207.png)
+
+- MDD
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%208.png)
+
+- Model vs Buy And Hold VN30F1M
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%209.png)
+
+### Short Model
+
+Best Trial: 337
+
+| trial | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
+| ----- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
+| 337   | 1.06   | -47,8      | 1.2     | 15,7    | 3.9                 | 40.15              |
+
+- Params:
+
+```python
+{
+	'TP': 11.4,
+	'SL': 4.5,
+	'position_size': 0.5,
+	'max_pos': 9,
+	'min_signals': 2,
+	'interval': 47,
+	'side': 'short',
+	'mode': 'one_way',
+	'strategies': ['RSI', 'ADX', 'CCI', 'Momentum', 'Donchian', 'Vortex']
+}
+
 ```
 
-The script will prompt for the number of trials to run. The search results, including trial logs and performance data, will be saved in the searching/ directory.
+- Optuna Trials:
 
-Step 2: Fine-tuning the strategy using the optimizing.py file.
+![newplot-3.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot-3.png)
 
-```{bash}
-python3 seaching.py
+- **Equity**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2010.png)
+
+- **Returns Distibutions**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2011.png)
+
+- **MDD**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2012.png)
+
+- **Model vs Buy And Hold VN30F1M**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2013.png)
+
+## **Out Sample Backtesting**
+
+To Validate the optimized strategy we run the Testing Class to run the strategy
+
+```python
+# Load Study
+study_name=f"optimizing_{best_search_trial}",
+storage="sqlite:///searching.db",
+search_study = optuna.load_study(study_name=study_name, storage=storage)
+
+config = {
+    'number_of_trials': num_trials, # number of trials
+    'side': 'long', # side of the models
+    'n_jobs': 2,
+    'cost': 0.25, # transaction fee for 1 side
+}
+
+# Testing
+test_dir = './result/testing'
+tester = Tester(trial_num=best_optimize_trial, path=optimize_dir, data=outsample, dir=test_dir)
+tester.run()
 ```
 
-This will further optimize the configuration by adjusting parameters like TP, SL, and technical indicators.
+### Long Model
 
-Parameter Adjustments
-You can modify the search space for the parameters (e.g., TP, SL, strategies) within the Optuna trials in the main.py or optimizing.py scripts.
+| trial | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
+| ----- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
+| 318   | 0.94   | -15.77     | 2.17    | 17      | 2.4                 | 25.18              |
 
-Example snippet to change TP and SL ranges:
+- **Equity:**
 
-```{python}
-TP = trial.suggest_float("TP", 1, 5, step=0.5)
-SL = trial.suggest_float("SL", 1, 5, step=0.5)
-```
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2014.png)
 
-# Result Files
+- **Returns Distibutions:**
 
-- Trial Logs: Stored in searching/{trial_number}/history.csv.
-- Best Parameters: Saved in best_params.log and strategy_optimize_best_params.txt.
-- Results Overview
-  -Example Metrics from Optimization:
-  -Mean PnL: Indicates the average profit or loss per trade.
-  -Win Rate: Percentage of winning trades.
-  -Sharpe Ratio: Measures risk-adjusted return.
-  -Loss: The difference between expected and actual performance, used as the objective function for optimization.
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2015.png)
+
+- **MDD**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2016.png)
+
+### Shor Model
+
+| trial | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
+| ----- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
+| 318   | 0.25   | -38.8      | 0.36    | 10      | 0.9                 | 9.9                |
+
+- **Equity:**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2017.png)
+
+- **Returns Distibutions**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2018.png)
+
+- **MDD**
+
+![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2019.png)
+
+# Paper Trading
+
+(To be updated)
+
+With seed 42, the result for
+
+- Long model:
+
+|            | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
+| ---------- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
+| In-Sample  | 0.96   | -43,2      | 1.7     | 15,7    | 4,6                 | 46,9               |
+| Out-Sample | 0.94   | -15.77     | 2.17    | 17      | 2.4                 | 25.18              |
+
+- Short model:
+
+|            | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
+| ---------- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
+| In-Sample  | 1.069  | -47.7      | 1.23    | 13      | 3.98                | 40.15              |
+| Out-Sample | 0.25   | -38.8      | 0.36    | 10      | 0.98                | 9.9                |
+
+# **Conclusion**
+
+The strategy found has a high win rate and generates a high return over time. However, the main issue is that the maximum drawdown is extremely high in in-sample backtesting. Despite the high drawdown, the process of searching and optimizing has identified a profitable strategy with strong consistency between in-sample and out-of-sample testing.
+
+# **Reference**

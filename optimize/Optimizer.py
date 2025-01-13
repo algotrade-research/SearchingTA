@@ -8,6 +8,7 @@ from utils import *
 from strategy import *
 from backtest import *
 import optuna
+import random
 
 class Optimizer:
     """
@@ -22,6 +23,8 @@ class Optimizer:
                  SL: Tuple[float, float] = (-3, 3),
                  TP: Tuple[float, float] = (-3, 3),
                  side: ['long', 'short'] = None,
+                 cost: float = 0.25,
+                 slippage: float = 0.47,
                  mode: ['one_way', 'hedged'] = 'one_way',
                  n_jobs: int = 2
                  ):
@@ -38,6 +41,7 @@ class Optimizer:
         self.side = side
         self.mode = mode
         self.n_jobs = n_jobs
+        self.slippage = slippage
 
         # initialize directory
         os.makedirs(dir, exist_ok=True)
@@ -45,10 +49,14 @@ class Optimizer:
 
         self.number_of_trials: int = number_of_trials
         self.data: pd.DataFrame = data
+        self.cost = cost
         self.bt = None
 
         self._read_params(trial, path)
         self._validate()
+
+        np.random.seed(42)
+        random.seed(42)
 
     def _validate(self):
         self.TP = (-(self.params['TP'] - 1) if self.params['TP'] + self.TP[0] < 0 else self.TP[0], self.TP[1])
@@ -76,7 +84,6 @@ class Optimizer:
 
     def _configure(self,
                   strategies: List[Callable],
-                  cost: float=0.25,
                   slippage: float = 0, 
                   TP: float=None, 
                   SL: float=None,
@@ -98,7 +105,7 @@ class Optimizer:
         self.bt_config = BacktestConfig(
             interval=interval,
             initial_balance=balance,
-            cost=cost,
+            cost=self.cost,
             slippage=slippage,
             max_pos=max_pos,
             TP=TP,
@@ -120,7 +127,7 @@ class Optimizer:
             Strategies: {[strategy.__name__ for strategy in strategies]}
         """ + str(self.bt_config)
     
-    def objective(self, history: pd.Series, TP: float, SL: float, equity: pd.Series, balance: pd.Series) -> float:
+    def objective(self, balance: pd.Series) -> float:
         """
             Objective function to optimize 
             
@@ -137,29 +144,18 @@ class Optimizer:
                 
             The find the optimal strategy, we by maximizing the objective function
         """
-        break_even_prob = (SL + 2 * self.bt_config.cost) / (SL + TP)
-        expected_pnl = TP * break_even_prob
-        
-        pnl = history
-        mean_pnl = pnl.mean()
-        winrate = (pnl > 0).astype(int).mean() * 100
 
         p_returns = balance.resample('1D').last().pct_change().dropna()
         mean_p_returns = p_returns.mean()
         std_p_returns = p_returns.std()
+
         sharpe_ratio = np.sqrt(252) * mean_p_returns / std_p_returns
         
-
-        loss = (winrate / (break_even_prob * 100)) + (mean_pnl / expected_pnl)
-        loss = loss + (sharpe_ratio - 1)
-
-        dd = (equity - equity.cummax())
-        mean_dd = (dd[dd != 0].mean())
-
-        loss = loss + (mean_pnl / mean_dd)
+        alpha = 0.5
+        beta = 0.5
+        loss =  (sharpe_ratio / 2 - 1) * beta + (mean_p_returns * 252 / 0.15 - 1) * alpha
 
         return loss
-
     def seaching_objective(self, trial):
         TP = self.params['TP'] + trial.suggest_float("TP", self.TP[0], self.TP[1], step=0.1)
         SL = self.params['SL'] + trial.suggest_float("SL", self.SL[0], self.SL[1], step=0.5)
@@ -185,6 +181,7 @@ class Optimizer:
             # Base Parameters
             side=self.side,
             mode=self.mode,
+            slippage=self.slippage,
             strategies=selected_strategies,
         )
 
@@ -197,8 +194,11 @@ class Optimizer:
         if len(history) == 0:
             return float('-inf')
 
-        balance = self.bt.data['balance']
-        equity = self.bt.data['equity']
+        balance = self.bt.data['balance'].fillna(method='ffill')
+        equity = self.bt.data['equity'].fillna(method='ffill')
+
+        # print('balance', balance)
+        # print('equity', equity)
         
         os.makedirs(os.path.join(self._dir, str(trial.number)), exist_ok=True)
         
@@ -212,13 +212,14 @@ class Optimizer:
             "SL": SL,
             'position_size': pos_size,
             'max_pos': max_pos,
+            'min_signals': min_signals,
             'interval': self.params['interval'],
             'side': self.side,
             'mode': self.mode,
             "strategies": [strategy.__name__ for strategy in selected_strategies]
         }
 
-        loss = self.objective(history.pnl, TP, SL, equity, balance)
+        loss = self.objective(balance)
 
         logging.info(f"Trial {trial.number} - Strategies: {selected_strategies}, TP: {TP}, SL: {SL} - Loss: {loss}")
 
@@ -235,7 +236,11 @@ class Optimizer:
     def run(self, name: str=''):
 
         try:
-            study = optuna.create_study(direction="maximize",
+            np.random.seed(42)
+            random.seed(42)
+            sampler = optuna.samplers.TPESampler(seed=42)
+            study = optuna.create_study(sampler=sampler,
+                                        direction="maximize",
                                         study_name=f"optimizing_{name}",
                                         storage="sqlite:///searching.db", 
                                         load_if_exists=True)    
