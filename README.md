@@ -126,7 +126,7 @@ datetime
 
 The Data is processed resample to OHLC data and adding Technical Indicators through processor function in `./utils` folder.
 
-The Data Processing is automatically done by Backtesting class, by passing the tick data DataFrame
+The Data Processing is automatically done by Backtesting class, by passing the tick data DataFrame to backtesting class.
 
 ## Train Test Split
 
@@ -164,7 +164,11 @@ python3 -m long
 
 - Short model
 
-All the result stored in `./result_short`
+All the result stored in `./result_short`****
+
+```python
+python3 -m long
+```
 
 To get the metrics, run all in `visualize.ipynb`
 
