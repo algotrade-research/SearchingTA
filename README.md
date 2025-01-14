@@ -464,7 +464,7 @@ tester.run()
 
 ![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2016.png)
 
-### Shor Model
+### Short Model
 
 | trial | sharpe | max_dd (%) | sortino | winrate | monthly_returns (%) | yearly_returns (%) |
 | ----- | ------ | ---------- | ------- | ------- | ------------------- | ------------------ |
@@ -481,6 +481,10 @@ tester.run()
 - **MDD**
 
 ![newplot.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/newplot%2019.png)
+
+- **Model vs VN30F1M**
+
+![short_outsmaple_vs_vn30f.png](SearchingTA%20172abb7648aa80ab85c1d77df9136097/short_outsample_vs_vn30f.png)
 
 # Paper Trading
 
