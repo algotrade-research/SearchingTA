@@ -181,7 +181,11 @@ The whole process is optimized by Optuna.
 The Objective function here is:
 
 $$
-\begin{align*}\text{break even prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\\text{expected pnl} &= \text{TP} \cdot \text{break even prob} \\\text{mean pnl} &\text{: the mean profit and loss of the strategy} \\\text{winrate} &\text{: the percentage of winning trades}
+\begin{align*}
+\text{break even prob} &= \frac{\text{SL} + 2 \cdot \text{cost}}{\text{SL} + \text{TP}} \\
+\text{expected pnl} &= \text{TP} \cdot \text{break even prob} \\
+\text{mean pnl} &\text{: the mean profit and loss of the strategy} \\
+\text{winrate} &\text{: the percentage of winning trades}
 \end{align*}
 $$
 
@@ -306,8 +310,10 @@ This part is to find a complete strategy based on best set of signal rules.
 The Objective here is maximize:
 
 $$
-S = \frac{R_p}{\sigma_p} \\
-loss = (\frac{S}{2} - 1) + (\frac{\bar{R_p}}{15\%} - 1)
+\begin{align*}
+S &= \sqrt{252} \cdot \frac{R_p}{\sigma_p} \\
+loss &= (\frac{S}{2} - 1) + (\frac{\bar{R_p}}{0.15} - 1)
+\end{align*}
 $$
 
 Where:
@@ -435,7 +441,8 @@ To Validate the optimized strategy we run the Testing Class to run the strategy
 # Load Study
 study_name=f"optimizing_{best_search_trial}",
 storage="sqlite:///searching.db",
-search_study = optuna.load_study(study_name=study_name, storage=storage)
+optimize_study = optuna.load_study(study_name=study_name, storage=storage)
+best_optimize_trial = optimize_study.best_trial.number
 
 config = {
     'number_of_trials': num_trials, # number of trials
