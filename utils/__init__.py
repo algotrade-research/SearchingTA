@@ -1,5 +1,4 @@
-from .downloader import *
-from .processor import * 
-from .backteting import *
+from .downloader import Downloader
+from .processor import processor
 from .visualize import *
 from .helpers import *
