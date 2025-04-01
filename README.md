@@ -1,3 +1,5 @@
+![Static Badge](https://img.shields.io/badge/PLUTUS-verified_65%25-yellow)
+
 # SearchingTA
 
 # **Abstract**
